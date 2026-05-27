@@ -1,5 +1,24 @@
 import { useState } from "react";
 
+// ─── COLOUR TOKENS ───────────────────────────────────────────────
+const C = {
+  accent:      "#0d9488",
+  accentLight: "#99f6e4",
+  accentDim:   "#0f766e",
+  bg:          "#0f172a",
+  card:        "#1e293b",
+  border:      "#334155",
+  textPrimary: "#f1f5f9",
+  textSecond:  "#94a3b8",
+  textMuted:   "#dbdbdb",
+  textFaint:   "#64748b",
+  red:         "#ef4444",
+  redBg:       "#1a0505",
+  redLight:    "#fca5a5",
+  green:       "#22c55e",
+  amber:       "#f59e0b",
+};
+
 const GATES = [
   {
     key: "problemClarity",
@@ -112,11 +131,11 @@ const SCORING_DIMS = [
     weight: 0.05,
     question: "Can you articulate what success looks like in measurable terms with a timeframe and an owner?",
     tip: "'Efficiency gains' is not a metric. Name the number, the date, and the person accountable.",
-    scale: ["No idea", "Rough guess", "Defined metric", "Metric(s) + owner", "Metric(s) + owner + deadline"],
+    scale: ["No idea", "Rough guess", "Defined metric(s)", "Metric(s) + owner", "Metric(s) + owner + deadline"],
     blocker: [
       "No ROI definition. You're flying blind on value.",
       "A rough guess won't survive a board question. Get specific.",
-      "A metric without an owner is just a wish.",
+      "Metric(s) without an owner is just a wish.",
       "Metric(s) and owner are good. Add a deadline to create accountability.",
       "Clear, measurable ROI definition with full accountability.",
     ],
@@ -153,15 +172,17 @@ const SCORING_DIMS = [
   },
 ];
 
-const RADAR_DIMS = ["processQuality", "dataReadiness", "successDefinition", "executiveSponsorship", "governanceReadiness"];
-const RADAR_LABELS = ["Process\nQuality", "Data\nReadiness", "Success\nDefinition", "Exec\nSponsorship", "Governance"];
+const RADAR_DIMS   = ["processQuality","dataReadiness","successDefinition","executiveSponsorship","governanceReadiness"];
+const RADAR_LABELS = ["Process\nQuality","Data\nReadiness","Success\nDefinition","Exec\nSponsorship","Governance"];
 
 const VERDICT_BANDS = [
-  { min: 80, label: "Strong Foundation", color: "#22c55e", icon: "✅", message: "Your use case has solid foundations. The logical next step is a process blueprint before selecting any technology." },
-  { min: 60, label: "Proceed with Conditions", color: "#f59e0b", icon: "⚠️", message: "There's a viable use case here, but specific gaps need groundwork before committing to a technology decision." },
+  { min: 80, label: "Strong Foundation",           color: C.green,  icon: "✅", message: "Your use case has solid foundations. The logical next step is a process blueprint before selecting any technology." },
+  { min: 60, label: "Proceed with Conditions",     color: C.amber,  icon: "⚠️", message: "There's a viable use case here, but specific gaps need groundwork before committing to a technology decision." },
   { min: 40, label: "Significant Groundwork Needed", color: "#f97316", icon: "🔶", message: "This isn't a no — but it isn't ready. Acting now risks investing in the wrong solution to a poorly defined problem." },
-  { min: 0, label: "Not Ready", color: "#ef4444", icon: "🛑", message: "The foundations aren't in place yet. Proceeding without addressing these gaps typically leads to expensive reversals." },
+  { min: 0,  label: "Not Ready",                   color: C.red,    icon: "🛑", message: "The foundations aren't in place yet. Proceeding without addressing these gaps typically leads to expensive reversals." },
 ];
+
+// ─── COMPONENTS ──────────────────────────────────────────────────
 
 function RadarChart({ scores }) {
   const cx = 160, cy = 160, r = 110;
@@ -176,15 +197,15 @@ function RadarChart({ scores }) {
   const scorePolygon = scorePts.map(p => `${p.x},${p.y}`).join(" ");
   return (
     <svg viewBox="0 0 320 320" style={{ width: "100%", maxWidth: 300 }}>
-      {gridPts.map((pts, i) => <polygon key={i} points={pts} fill="none" stroke="#334155" strokeWidth="1" />)}
-      {angles.map((angle, i) => { const pt = polar(angle, r); return <line key={i} x1={cx} y1={cy} x2={pt.x} y2={pt.y} stroke="#334155" strokeWidth="1" />; })}
-      <polygon points={scorePolygon} fill="rgba(99,102,241,0.25)" stroke="#6366f1" strokeWidth="2" />
-      {scorePts.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="5" fill="#6366f1" />)}
+      {gridPts.map((pts, i) => <polygon key={i} points={pts} fill="none" stroke={C.border} strokeWidth="1" />)}
+      {angles.map((angle, i) => { const pt = polar(angle, r); return <line key={i} x1={cx} y1={cy} x2={pt.x} y2={pt.y} stroke={C.border} strokeWidth="1" />; })}
+      <polygon points={scorePolygon} fill="rgba(13,148,136,0.2)" stroke={C.accent} strokeWidth="2" />
+      {scorePts.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="5" fill={C.accent} />)}
       {angles.map((angle, i) => {
         const pt = polar(angle, r + 28);
         const lines = RADAR_LABELS[i].split("\n");
         return (
-          <text key={i} x={pt.x} y={pt.y} textAnchor="middle" fill="#94a3b8" fontSize="10.5" fontFamily="'DM Sans', sans-serif">
+          <text key={i} x={pt.x} y={pt.y} textAnchor="middle" fill={C.textSecond} fontSize="10.5" fontFamily="'DM Sans', sans-serif">
             {lines.map((line, j) => <tspan key={j} x={pt.x} dy={j === 0 ? (lines.length > 1 ? "-0.5em" : "0") : "1.2em"}>{line}</tspan>)}
           </text>
         );
@@ -195,8 +216,8 @@ function RadarChart({ scores }) {
 
 function ScoreBar({ value }) {
   return (
-    <div style={{ background: "#0f172a", borderRadius: 4, height: 6, width: "100%", overflow: "hidden" }}>
-      <div style={{ width: `${(value / 5) * 100}%`, height: "100%", background: "#6366f1", borderRadius: 4, transition: "width 0.6s ease" }} />
+    <div style={{ background: C.bg, borderRadius: 4, height: 6, width: "100%", overflow: "hidden" }}>
+      <div style={{ width: `${(value / 5) * 100}%`, height: "100%", background: C.accent, borderRadius: 4, transition: "width 0.6s ease" }} />
     </div>
   );
 }
@@ -205,7 +226,7 @@ function ProgressBar({ current, total }) {
   return (
     <div style={{ display: "flex", gap: 5, marginBottom: 24 }}>
       {Array.from({ length: total }).map((_, i) => (
-        <div key={i} style={{ height: 4, flex: 1, borderRadius: 4, background: i < current ? "#6366f1" : i === current ? "#818cf8" : "#1e293b", border: i >= current ? "1px solid #334155" : "none" }} />
+        <div key={i} style={{ height: 4, flex: 1, borderRadius: 4, background: i < current ? C.accent : i === current ? C.accentLight : C.card, border: i >= current ? `1px solid ${C.border}` : "none" }} />
       ))}
     </div>
   );
@@ -213,22 +234,23 @@ function ProgressBar({ current, total }) {
 
 function BackButton({ onClick }) {
   return (
-    <button onClick={onClick} style={{ background: "none", border: "none", color: "#475569", fontSize: 13, cursor: "pointer", marginTop: 16, display: "block", width: "100%", textAlign: "center", fontFamily: "'DM Sans', sans-serif", padding: "8px 0" }}>
+    <button onClick={onClick} style={{ background: "none", border: "none", color: C.textMuted, fontSize: 13, cursor: "pointer", marginTop: 14, display: "block", width: "100%", textAlign: "center", fontFamily: "'DM Sans', sans-serif", padding: "8px 0" }}>
       ← Back
     </button>
   );
 }
 
-// Shared styles
-const wrapStyle = { minHeight: "100vh", background: "#0f172a", color: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px" };
-const cardStyle = { background: "#1e293b", borderRadius: 16, padding: "36px 32px", maxWidth: 600, width: "100%", boxShadow: "0 25px 60px rgba(0,0,0,0.5)" };
-const labelStyle = { fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "#6366f1", fontWeight: 700, marginBottom: 10 };
-const questionStyle = { fontSize: 20, fontWeight: 700, color: "#f1f5f9", lineHeight: 1.35, marginBottom: 0 };
-const tipStyle = { fontSize: 13, color: "#a5b4fc", lineHeight: 1.6, marginTop: 14, padding: "10px 14px", background: "#0f172a", borderRadius: 8, borderLeft: "3px solid #4338ca" };
-const btnStyle = { background: "#6366f1", color: "#fff", border: "none", borderRadius: 10, padding: "14px 28px", fontSize: 15, fontWeight: 600, cursor: "pointer", width: "100%", marginTop: 20, fontFamily: "'DM Sans', sans-serif" };
-const btnSecStyle = { background: "transparent", color: "#6366f1", border: "1.5px solid #6366f1", borderRadius: 10, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer", width: "100%", marginTop: 10, fontFamily: "'DM Sans', sans-serif" };
-const inputStyle = { width: "100%", background: "#0f172a", border: "1.5px solid #334155", borderRadius: 10, padding: "14px 16px", color: "#e2e8f0", fontSize: 15, fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box" };
+// ─── SHARED STYLES ───────────────────────────────────────────────
+const wrapStyle     = { minHeight: "100vh", background: C.bg, color: C.textPrimary, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px" };
+const cardStyle     = { background: C.card, borderRadius: 16, padding: "36px 32px", maxWidth: 600, width: "100%", boxShadow: "0 25px 60px rgba(0,0,0,0.5)" };
+const labelStyle    = { fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: C.accent, fontWeight: 700, marginBottom: 10 };
+const questionStyle = { fontSize: 20, fontWeight: 700, color: C.textPrimary, lineHeight: 1.35, marginBottom: 0 };
+const tipStyle      = { fontSize: 13, color: C.accentLight, lineHeight: 1.6, marginTop: 14, padding: "10px 14px", background: C.bg, borderRadius: 8, borderLeft: `3px solid ${C.accentDim}` };
+const btnStyle      = { background: C.accent, color: "#fff", border: "none", borderRadius: 10, padding: "14px 28px", fontSize: 15, fontWeight: 600, cursor: "pointer", width: "100%", marginTop: 20, fontFamily: "'DM Sans', sans-serif" };
+const btnSecStyle   = { background: "transparent", color: C.accent, border: `1.5px solid ${C.accent}`, borderRadius: 10, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer", width: "100%", marginTop: 10, fontFamily: "'DM Sans', sans-serif" };
+const inputStyle    = { width: "100%", background: C.bg, border: `1.5px solid ${C.border}`, borderRadius: 10, padding: "14px 16px", color: C.textPrimary, fontSize: 15, fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box" };
 
+// ─── APP ─────────────────────────────────────────────────────────
 export default function App() {
   const totalSteps = GATES.length + SCORING_DIMS.length;
 
@@ -239,15 +261,15 @@ export default function App() {
     return s;
   };
 
-  const [step, setStep] = useState("intro");
-  const [useCase, setUseCase] = useState("");
-  const [scores, setScores] = useState(initScores());
-  const [gateIndex, setGateIndex] = useState(0);
+  const [step, setStep]               = useState("intro");
+  const [useCase, setUseCase]         = useState("");
+  const [scores, setScores]           = useState(initScores());
+  const [gateIndex, setGateIndex]     = useState(0);
   const [scoringIndex, setScoringIndex] = useState(0);
-  const [failedGate, setFailedGate] = useState(null);
-  const [email, setEmail] = useState("");
-  const [emailError, setEmailError] = useState("");
-  const [aiInsights, setAiInsights] = useState(null);
+  const [failedGate, setFailedGate]   = useState(null);
+  const [email, setEmail]             = useState("");
+  const [emailError, setEmailError]   = useState("");
+  const [aiInsights, setAiInsights]   = useState(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
 
   function setScore(key, val) { setScores(s => ({ ...s, [key]: val })); }
@@ -256,7 +278,7 @@ export default function App() {
     return Math.round(SCORING_DIMS.reduce((acc, d) => acc + (scores[d.key] / 5) * d.weight, 0) * 100);
   }
 
-  function getVerdict(score) { return VERDICT_BANDS.find(b => score >= b.min); }
+  function getVerdict(s) { return VERDICT_BANDS.find(b => s >= b.min); }
 
   async function fetchInsights(submittedEmail) {
     setLoadingInsights(true);
@@ -297,18 +319,15 @@ Respond ONLY with a JSON object, no markdown, no preamble:
           verdictLabel: verdict?.label,
         }),
       });
-
       if (!response.ok) {
-        const errText = await response.text();
-        console.error("API error:", errText);
+        const t = await response.text();
+        console.error("API error:", t);
         setAiInsights({ topRisk: "Unable to generate insight at this time. Please try again.", firstAction: "", timeframe: "" });
         setLoadingInsights(false);
         return;
       }
-
       const data = await response.json();
       if (data.error) {
-        console.error("Insight error:", data.error, data.detail);
         setAiInsights({ topRisk: "Unable to generate insight at this time.", firstAction: "Review your dimension scores and address the lowest-scoring area first.", timeframe: "Varies by gap severity." });
       } else {
         setAiInsights(data);
@@ -322,48 +341,24 @@ Respond ONLY with a JSON object, no markdown, no preamble:
 
   function handleGateNext() {
     const gate = GATES[gateIndex];
-    if (scores[gate.key] < 3) {
-      setFailedGate(gate);
-      setStep("gateBlock");
-      return;
-    }
-    if (gateIndex < GATES.length - 1) {
-      setGateIndex(i => i + 1);
-    } else {
-      setStep("scoring");
-    }
+    if (scores[gate.key] < 3) { setFailedGate(gate); setStep("gateBlock"); return; }
+    if (gateIndex < GATES.length - 1) { setGateIndex(i => i + 1); } else { setStep("scoring"); }
   }
 
   function handleGateBack() {
-    if (gateIndex === 0) {
-      setStep("intro");
-    } else {
-      setGateIndex(i => i - 1);
-    }
+    if (gateIndex === 0) { setStep("intro"); } else { setGateIndex(i => i - 1); }
   }
 
   function handleScoringNext() {
-    if (scoringIndex < SCORING_DIMS.length - 1) {
-      setScoringIndex(i => i + 1);
-    } else {
-      setStep("emailGate");
-    }
+    if (scoringIndex < SCORING_DIMS.length - 1) { setScoringIndex(i => i + 1); } else { setStep("emailGate"); }
   }
 
   function handleScoringBack() {
-    if (scoringIndex === 0) {
-      setStep("gates");
-      setGateIndex(GATES.length - 1);
-    } else {
-      setScoringIndex(i => i - 1);
-    }
+    if (scoringIndex === 0) { setStep("gates"); setGateIndex(GATES.length - 1); } else { setScoringIndex(i => i - 1); }
   }
 
   function handleEmailSubmit() {
-    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-      setEmailError("Please enter a valid email address.");
-      return;
-    }
+    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) { setEmailError("Please enter a valid email address."); return; }
     setEmailError("");
     setStep("results");
     fetchInsights(email);
@@ -375,24 +370,24 @@ Respond ONLY with a JSON object, no markdown, no preamble:
     setEmail(""); setEmailError(""); setAiInsights(null);
   }
 
-  const score = calcScore();
+  const score   = calcScore();
   const verdict = getVerdict(score);
   const currentGate = GATES[gateIndex];
-  const currentDim = SCORING_DIMS[scoringIndex];
+  const currentDim  = SCORING_DIMS[scoringIndex];
 
   return (
     <div style={wrapStyle}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
-      {/* INTRO */}
+      {/* ── INTRO ── */}
       {step === "intro" && (
         <div style={cardStyle}>
           <div style={labelStyle}>Corbelle</div>
-          <h1 style={{ fontSize: 28, fontWeight: 700, color: "#f1f5f9", lineHeight: 1.2, marginBottom: 12 }}>Use Case Validator</h1>
-          <p style={{ fontSize: 15, color: "#94a3b8", lineHeight: 1.7, marginBottom: 12 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 700, color: C.textPrimary, lineHeight: 1.2, marginBottom: 12 }}>Use Case Validator</h1>
+          <p style={{ fontSize: 15, color: C.textSecond, lineHeight: 1.7, marginBottom: 12 }}>
             Before buying a licence or briefing a team, find out whether your AI use case has the foundations to succeed — or whether you're about to solve the wrong problem with expensive technology.
           </p>
-          <p style={{ fontSize: 13, color: "#475569", lineHeight: 1.6, marginBottom: 24 }}>11 questions. Under 5 minutes. A clear, honest verdict.</p>
+          <p style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.6, marginBottom: 24 }}>11 questions. Under 5 minutes. A clear, honest verdict.</p>
           <textarea
             style={{ ...inputStyle, resize: "vertical", minHeight: 90 }}
             placeholder="Describe the AI use case you're considering in one or two sentences..."
@@ -405,7 +400,7 @@ Respond ONLY with a JSON object, no markdown, no preamble:
         </div>
       )}
 
-      {/* GATES */}
+      {/* ── GATES ── */}
       {step === "gates" && (
         <div style={cardStyle}>
           <ProgressBar current={gateIndex} total={totalSteps} />
@@ -413,16 +408,15 @@ Respond ONLY with a JSON object, no markdown, no preamble:
           <h2 style={questionStyle}>{currentGate.question}</h2>
           <div style={tipStyle}>{currentGate.tip}</div>
           <div style={{ marginTop: 24, marginBottom: 8 }}>
-            <div style={{ fontSize: 32, fontWeight: 700, color: "#6366f1", textAlign: "center", marginBottom: 4 }}>
-              {scores[currentGate.key]}<span style={{ fontSize: 16, color: "#475569" }}>/5</span>
+            <div style={{ fontSize: 32, fontWeight: 700, color: C.accent, textAlign: "center", marginBottom: 4 }}>
+              {scores[currentGate.key]}<span style={{ fontSize: 16, color: C.textFaint }}>/5</span>
             </div>
-            <div style={{ fontSize: 13, color: "#6366f1", textAlign: "center", marginBottom: 16, fontWeight: 600 }}>
+            <div style={{ fontSize: 13, color: C.textMuted, textAlign: "center", marginBottom: 16, fontWeight: 600 }}>
               {currentGate.scale[scores[currentGate.key] - 1]}
             </div>
             <input type="range" min="1" max="5" value={scores[currentGate.key]}
-              onChange={e => setScore(currentGate.key, Number(e.target.value))}
-              style={{ width: "100%" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginTop: 6 }}>
+              onChange={e => setScore(currentGate.key, Number(e.target.value))} style={{ width: "100%" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.textMuted, marginTop: 6 }}>
               {currentGate.scale.map((l, i) => <span key={i} style={{ textAlign: "center", maxWidth: 60, lineHeight: 1.2 }}>{l}</span>)}
             </div>
           </div>
@@ -431,21 +425,21 @@ Respond ONLY with a JSON object, no markdown, no preamble:
         </div>
       )}
 
-      {/* GATE BLOCK */}
+      {/* ── GATE BLOCK ── */}
       {step === "gateBlock" && failedGate && (
         <div style={cardStyle}>
-          <div style={{ ...labelStyle, color: "#ef4444" }}>Assessment Stopped</div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#ef4444", lineHeight: 1.3, marginBottom: 16 }}>{failedGate.stopTitle}</h2>
-          <div style={{ background: "#1a0505", border: "1.5px solid #ef4444", borderRadius: 12, padding: "20px 22px", marginBottom: 20 }}>
-            <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>🚫 {failedGate.label}</div>
-            <p style={{ fontSize: 14, color: "#fca5a5", lineHeight: 1.75, margin: 0 }}>{failedGate.failMessage}</p>
+          <div style={{ ...labelStyle, color: C.red }}>Assessment Stopped</div>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: C.red, lineHeight: 1.3, marginBottom: 16 }}>{failedGate.stopTitle}</h2>
+          <div style={{ background: C.redBg, border: `1.5px solid ${C.red}`, borderRadius: 12, padding: "20px 22px", marginBottom: 20 }}>
+            <div style={{ fontSize: 11, color: C.red, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>🚫 {failedGate.label}</div>
+            <p style={{ fontSize: 14, color: C.redLight, lineHeight: 1.75, margin: 0 }}>{failedGate.failMessage}</p>
           </div>
-          <p style={{ fontSize: 13, color: "#475569", lineHeight: 1.6, marginBottom: 0 }}>No score has been generated. Come back when this foundation is in place.</p>
+          <p style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.6, marginBottom: 0 }}>No score has been generated. Come back when this foundation is in place.</p>
           <button style={btnStyle} onClick={reset}>Start Again</button>
         </div>
       )}
 
-      {/* SCORING */}
+      {/* ── SCORING ── */}
       {step === "scoring" && (
         <div style={cardStyle}>
           <ProgressBar current={GATES.length + scoringIndex} total={totalSteps} />
@@ -453,16 +447,15 @@ Respond ONLY with a JSON object, no markdown, no preamble:
           <h2 style={questionStyle}>{currentDim.question}</h2>
           <div style={tipStyle}>{currentDim.tip}</div>
           <div style={{ marginTop: 24, marginBottom: 8 }}>
-            <div style={{ fontSize: 32, fontWeight: 700, color: "#6366f1", textAlign: "center", marginBottom: 4 }}>
-              {scores[currentDim.key]}<span style={{ fontSize: 16, color: "#475569" }}>/5</span>
+            <div style={{ fontSize: 32, fontWeight: 700, color: C.accent, textAlign: "center", marginBottom: 4 }}>
+              {scores[currentDim.key]}<span style={{ fontSize: 16, color: C.textFaint }}>/5</span>
             </div>
-            <div style={{ fontSize: 13, color: "#6366f1", textAlign: "center", marginBottom: 16, fontWeight: 600 }}>
+            <div style={{ fontSize: 13, color: C.textMuted, textAlign: "center", marginBottom: 16, fontWeight: 600 }}>
               {currentDim.scale[scores[currentDim.key] - 1]}
             </div>
             <input type="range" min="1" max="5" value={scores[currentDim.key]}
-              onChange={e => setScore(currentDim.key, Number(e.target.value))}
-              style={{ width: "100%" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginTop: 6 }}>
+              onChange={e => setScore(currentDim.key, Number(e.target.value))} style={{ width: "100%" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.textMuted, marginTop: 6 }}>
               {currentDim.scale.map((l, i) => <span key={i} style={{ textAlign: "center", maxWidth: 56, lineHeight: 1.2 }}>{l}</span>)}
             </div>
           </div>
@@ -473,101 +466,101 @@ Respond ONLY with a JSON object, no markdown, no preamble:
         </div>
       )}
 
-      {/* EMAIL GATE */}
+      {/* ── EMAIL GATE ── */}
       {step === "emailGate" && (
         <div style={cardStyle}>
           <div style={labelStyle}>Corbelle</div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#f1f5f9", lineHeight: 1.3, marginBottom: 12 }}>Your results are ready.</h2>
-          <p style={{ fontSize: 15, color: "#94a3b8", lineHeight: 1.7, marginBottom: 8 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: C.textPrimary, lineHeight: 1.3, marginBottom: 12 }}>Your results are ready.</h2>
+          <p style={{ fontSize: 15, color: C.textSecond, lineHeight: 1.7, marginBottom: 8 }}>
             Enter your email to see your Foundation Score, full diagnostic, and AI-generated insight — including your top risk and the single most important action to take next.
           </p>
-          <p style={{ fontSize: 12, color: "#475569", lineHeight: 1.5, marginBottom: 24 }}>Your results will also be sent to your inbox. No spam, ever.</p>
-          <input
-            style={inputStyle}
-            type="email"
-            placeholder="Your work email address"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleEmailSubmit()}
-          />
-          {emailError && <div style={{ fontSize: 12, color: "#ef4444", marginTop: 8 }}>{emailError}</div>}
+          <p style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.5, marginBottom: 24 }}>Your results will also be sent to your inbox. No spam, ever.</p>
+          <input style={inputStyle} type="email" placeholder="Your work email address"
+            value={email} onChange={e => setEmail(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleEmailSubmit()} />
+          {emailError && <div style={{ fontSize: 12, color: C.red, marginTop: 8 }}>{emailError}</div>}
           <button style={btnStyle} onClick={handleEmailSubmit}>Show My Results →</button>
           <BackButton onClick={() => { setStep("scoring"); setScoringIndex(SCORING_DIMS.length - 1); }} />
         </div>
       )}
 
-      {/* RESULTS */}
+      {/* ── RESULTS ── */}
       {step === "results" && (
         <div style={{ ...cardStyle, maxWidth: 640 }}>
           <div style={labelStyle}>Corbelle — Use Case Validator</div>
 
+          {/* Score */}
           <div style={{ display: "flex", gap: 20, alignItems: "center", marginBottom: 28 }}>
-            <div style={{ width: 96, height: 96, borderRadius: "50%", background: `conic-gradient(${verdict?.color} ${score * 3.6}deg, #0f172a 0deg)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <div style={{ width: 74, height: 74, borderRadius: "50%", background: "#1e293b", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
+            <div style={{ width: 96, height: 96, borderRadius: "50%", background: `conic-gradient(${verdict?.color} ${score * 3.6}deg, ${C.bg} 0deg)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <div style={{ width: 74, height: 74, borderRadius: "50%", background: C.card, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
                 <div style={{ fontSize: 24, fontWeight: 700, color: verdict?.color, lineHeight: 1 }}>{score}</div>
-                <div style={{ fontSize: 10, color: "#475569" }}>/ 100</div>
+                <div style={{ fontSize: 10, color: C.textFaint }}>/ 100</div>
               </div>
             </div>
             <div>
               <div style={{ fontSize: 19, fontWeight: 700, color: verdict?.color, marginBottom: 5 }}>{verdict?.icon} {verdict?.label}</div>
-              <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.6 }}>{verdict?.message}</div>
+              <div style={{ fontSize: 13, color: C.textSecond, lineHeight: 1.6 }}>{verdict?.message}</div>
             </div>
           </div>
 
+          {/* Radar */}
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
             <RadarChart scores={scores} />
           </div>
 
+          {/* Dimension breakdown */}
           <div style={{ marginBottom: 28 }}>
             {SCORING_DIMS.map(dim => (
               <div key={dim.key} style={{ marginBottom: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 5 }}>
-                  <span style={{ color: "#94a3b8", fontWeight: 600 }}>{dim.label}</span>
-                  <span style={{ color: "#6366f1", fontWeight: 700 }}>{scores[dim.key]}/5 — {dim.scale[scores[dim.key]-1]}</span>
+                  <span style={{ color: C.textSecond, fontWeight: 600 }}>{dim.label}</span>
+                  <span style={{ color: C.accent, fontWeight: 700 }}>{scores[dim.key]}/5 — {dim.scale[scores[dim.key]-1]}</span>
                 </div>
                 <ScoreBar value={scores[dim.key]} />
-                <div style={{ fontSize: 12, color: "#475569", marginTop: 5 }}>{dim.blocker[scores[dim.key]-1]}</div>
+                <div style={{ fontSize: 12, color: C.textMuted, marginTop: 5 }}>{dim.blocker[scores[dim.key]-1]}</div>
               </div>
             ))}
           </div>
 
-          <div style={{ borderTop: "1px solid #334155", paddingTop: 22, marginBottom: 22 }}>
-            <div style={{ fontSize: 11, color: "#6366f1", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 16 }}>AI-Generated Insight</div>
+          {/* AI Insight */}
+          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 22, marginBottom: 22 }}>
+            <div style={{ fontSize: 11, color: C.accent, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 16 }}>AI-Generated Insight</div>
             {loadingInsights ? (
-              <div style={{ textAlign: "center", padding: "28px 0", color: "#475569", fontSize: 14 }}>
+              <div style={{ textAlign: "center", padding: "28px 0", color: C.textMuted, fontSize: 14 }}>
                 <div style={{ fontSize: 22, marginBottom: 10 }}>⚡</div>
                 Analysing your use case...
               </div>
             ) : aiInsights ? (
               <>
                 {aiInsights.topRisk && (
-                  <div style={{ background: "#0f172a", borderRadius: 10, padding: "16px 18px", marginBottom: 10 }}>
-                    <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Top Risk</div>
-                    <div style={{ fontSize: 14, color: "#e2e8f0", lineHeight: 1.7 }}>{aiInsights.topRisk}</div>
+                  <div style={{ background: C.bg, borderRadius: 10, padding: "16px 18px", marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, color: C.red, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Top Risk</div>
+                    <div style={{ fontSize: 14, color: C.textMuted, lineHeight: 1.7 }}>{aiInsights.topRisk}</div>
                   </div>
                 )}
                 {aiInsights.firstAction && (
-                  <div style={{ background: "#0f172a", borderRadius: 10, padding: "16px 18px", marginBottom: 10 }}>
-                    <div style={{ fontSize: 11, color: "#22c55e", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>First Action</div>
-                    <div style={{ fontSize: 14, color: "#e2e8f0", lineHeight: 1.7 }}>{aiInsights.firstAction}</div>
+                  <div style={{ background: C.bg, borderRadius: 10, padding: "16px 18px", marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, color: C.green, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>First Action</div>
+                    <div style={{ fontSize: 14, color: C.textMuted, lineHeight: 1.7 }}>{aiInsights.firstAction}</div>
                   </div>
                 )}
                 {aiInsights.timeframe && (
-                  <div style={{ background: "#0f172a", borderRadius: 10, padding: "16px 18px", marginBottom: 10 }}>
-                    <div style={{ fontSize: 11, color: "#f59e0b", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Realistic Timeframe</div>
-                    <div style={{ fontSize: 14, color: "#e2e8f0", lineHeight: 1.7 }}>{aiInsights.timeframe}</div>
+                  <div style={{ background: C.bg, borderRadius: 10, padding: "16px 18px", marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, color: C.amber, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Realistic Timeframe</div>
+                    <div style={{ fontSize: 14, color: C.textMuted, lineHeight: 1.7 }}>{aiInsights.timeframe}</div>
                   </div>
                 )}
-                <div style={{ fontSize: 12, color: "#a5b4fc", textAlign: "center", marginTop: 10 }}>✉️ A copy has been sent to {email}</div>
+                <div style={{ fontSize: 12, color: C.accentLight, textAlign: "center", marginTop: 10 }}>✉️ A copy has been sent to {email}</div>
               </>
             ) : null}
           </div>
 
-          <div style={{ background: "#0f172a", borderRadius: 12, padding: "20px 22px", marginBottom: 16, borderLeft: "3px solid #6366f1" }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#f1f5f9", marginBottom: 6 }}>Want to work through this with a thinking partner?</div>
-            <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.6, marginBottom: 14 }}>Corbelle helps mid-size executives make confident AI decisions — without the hype, the wasted licences, or the expensive reversals.</div>
+          {/* CTA */}
+          <div style={{ background: C.bg, borderRadius: 12, padding: "20px 22px", marginBottom: 16, borderLeft: `3px solid ${C.accent}` }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, marginBottom: 6 }}>Want to work through this with a thinking partner?</div>
+            <div style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.6, marginBottom: 14 }}>Corbelle helps mid-size executives make confident AI decisions — without the hype, the wasted licences, or the expensive reversals.</div>
             <a href="https://cal.com/brennie/ai-30-mins" target="_blank" rel="noopener noreferrer"
-              style={{ display: "block", background: "#6366f1", color: "#fff", borderRadius: 10, padding: "13px 20px", fontSize: 14, fontWeight: 600, textAlign: "center", textDecoration: "none" }}>
+              style={{ display: "block", background: C.accent, color: "#fff", borderRadius: 10, padding: "13px 20px", fontSize: 14, fontWeight: 600, textAlign: "center", textDecoration: "none" }}>
               Book a Free 30-Minute Call →
             </a>
           </div>
