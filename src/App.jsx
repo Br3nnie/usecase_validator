@@ -8,6 +8,7 @@ const GATES = [
     tip: "If you can't separate the problem from the solution, you're not solving a problem — you're justifying a purchase.",
     scale: ["No", "Not really", "Getting there", "Mostly", "Clearly yes"],
     failMessage: "You're not ready yet. If you can't describe the problem without mentioning the technology, you're not solving a problem... you're retrofitting a justification. This is exactly how organisations end up with expensive shelfware and a CTO explaining to the board why nobody's using the tool they just spent six figures on. Go back and define the problem first. The technology conversation comes later.",
+    stopTitle: "Stop. Redefine.",
   },
   {
     key: "stakeholderValidation",
@@ -16,6 +17,7 @@ const GATES = [
     tip: "Don't assume — have you actually asked them? Exec assumptions are how shelfware gets bought.",
     scale: ["Never asked", "Informally", "Some have", "Most have", "Formally confirmed"],
     failMessage: "Please stop. You're solving a problem you've assumed exists. The people who actually live with this day-to-day haven't confirmed it's a real priority. This means you're about to invest time, money and political capital into something built on an exec hypothesis. We've seen this all before. It's how CoPilot got rolled out to 150 people who didn't ask for it and stopped using it within 9 days. Go and talk to the people on the ground first.",
+    stopTitle: "Stop. Go and ask.",
   },
   {
     key: "changeReadiness",
@@ -24,6 +26,7 @@ const GATES = [
     tip: "The biggest mistake: no training investment = users excited for a week, then back to old habits.",
     scale: ["No plan", "Vague intent", "In discussion", "Plan drafted", "Plan confirmed"],
     failMessage: "The technology is the easy part. This is where most AI initiatives quietly die. Not because the tool didn't work, but because nobody told the people affected it was coming, nobody trained them, and nobody owned the transition. We've seen senior teams excited about AI on Monday and back to their old ways by Friday. Before you go any further, answer this: who specifically owns the change, how will people be trained, and what does good actually look like on day 30?",
+    stopTitle: "Stop. Sort the transition first.",
   },
 ];
 
@@ -109,28 +112,43 @@ const SCORING_DIMS = [
     weight: 0.05,
     question: "Can you articulate what success looks like in measurable terms with a timeframe and an owner?",
     tip: "'Efficiency gains' is not a metric. Name the number, the date, and the person accountable.",
-    scale: ["No idea", "Rough guess", "Defined metric", "Metric + owner", "Metric + owner + deadline"],
+    scale: ["No idea", "Rough guess", "Defined metric", "Metric(s) + owner", "Metric(s) + owner + deadline"],
     blocker: [
       "No ROI definition. You're flying blind on value.",
       "A rough guess won't survive a board question. Get specific.",
       "A metric without an owner is just a wish.",
-      "Metric and owner are good. Add a deadline to create accountability.",
+      "Metric(s) and owner are good. Add a deadline to create accountability.",
       "Clear, measurable ROI definition with full accountability.",
     ],
   },
   {
-    key: "dependencyContinuity",
-    label: "Dependency & Continuity",
-    weight: 0.05,
-    question: "If this AI tool had an outage or became 3× more expensive tomorrow, would this process still function?",
-    tip: "OpenAI went down and gaps appeared immediately in firms that had embedded it without a fallback.",
+    key: "operationalResilience",
+    label: "Operational Resilience",
+    weight: 0.03,
+    question: "If this AI tool became unavailable tomorrow, would this process still function?",
+    tip: "OpenAI went down and gaps appeared immediately in firms that had embedded it without a fallback plan.",
     scale: ["Total dependency", "No plan", "Partial fallback", "Fallback exists", "Fully resilient"],
     blocker: [
-      "Complete single point of failure. This needs a contingency plan before going live.",
+      "Complete single point of failure. A contingency plan is non-negotiable before going live.",
       "No plan means a vendor outage becomes your operational crisis.",
-      "Partial fallback is better than nothing but document it properly.",
-      "Fallback exists. Test it before you need it.",
+      "Partial fallback is better than nothing — document it and test it.",
+      "Fallback exists. Make sure it's been tested before you actually need it.",
       "Fully resilient. No single point of failure.",
+    ],
+  },
+  {
+    key: "costResilience",
+    label: "Cost Resilience",
+    weight: 0.02,
+    question: "If the cost of this AI tool increased 5× tomorrow, could your business absorb it?",
+    tip: "Token costs are not fixed. Firms that embedded AI at today's prices with no cost ceiling are exposed.",
+    scale: ["Would kill it", "Serious problem", "Painful but manageable", "Easily absorbed", "Cost is negligible"],
+    blocker: [
+      "A 5× cost increase would end this initiative. That's a critical dependency to resolve.",
+      "A serious cost problem would force hard decisions. Model the scenarios now, not later.",
+      "Painful but survivable — but have the conversation with finance before you're committed.",
+      "Good cost resilience. Keep monitoring vendor pricing as the market matures.",
+      "Cost is not a constraint. Strong position.",
     ],
   },
 ];
@@ -183,30 +201,6 @@ function ScoreBar({ value }) {
   );
 }
 
-function SliderQuestion({ dim, score, onChange, progressCurrent, progressTotal, labelPrefix }) {
-  const scale = dim.scale;
-  return (
-    <div style={cardStyle}>
-      <ProgressBar current={progressCurrent} total={progressTotal} />
-      <div style={labelStyle}>{labelPrefix}</div>
-      <h2 style={questionStyle}>{dim.question}</h2>
-      <div style={tipStyle}>{dim.tip}</div>
-      <div style={{ marginTop: 24, marginBottom: 8 }}>
-        <div style={{ fontSize: 32, fontWeight: 700, color: "#6366f1", textAlign: "center", marginBottom: 4 }}>
-          {score}<span style={{ fontSize: 16, color: "#475569" }}>/5</span>
-        </div>
-        <div style={{ fontSize: 13, color: "#6366f1", textAlign: "center", marginBottom: 16, fontWeight: 600 }}>
-          {scale[score - 1]}
-        </div>
-        <input type="range" min="1" max="5" value={score} onChange={e => onChange(Number(e.target.value))} style={{ width: "100%" }} />
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginTop: 6 }}>
-          {scale.map((l, i) => <span key={i} style={{ textAlign: "center", maxWidth: 56, lineHeight: 1.2 }}>{l}</span>)}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function ProgressBar({ current, total }) {
   return (
     <div style={{ display: "flex", gap: 5, marginBottom: 24 }}>
@@ -217,17 +211,27 @@ function ProgressBar({ current, total }) {
   );
 }
 
+function BackButton({ onClick }) {
+  return (
+    <button onClick={onClick} style={{ background: "none", border: "none", color: "#475569", fontSize: 13, cursor: "pointer", marginTop: 16, display: "block", width: "100%", textAlign: "center", fontFamily: "'DM Sans', sans-serif", padding: "8px 0" }}>
+      ← Back
+    </button>
+  );
+}
+
 // Shared styles
 const wrapStyle = { minHeight: "100vh", background: "#0f172a", color: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px" };
 const cardStyle = { background: "#1e293b", borderRadius: 16, padding: "36px 32px", maxWidth: 600, width: "100%", boxShadow: "0 25px 60px rgba(0,0,0,0.5)" };
 const labelStyle = { fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "#6366f1", fontWeight: 700, marginBottom: 10 };
 const questionStyle = { fontSize: 20, fontWeight: 700, color: "#f1f5f9", lineHeight: 1.35, marginBottom: 0 };
-const tipStyle = { fontSize: 13, color: "#475569", lineHeight: 1.6, marginTop: 14, padding: "10px 14px", background: "#0f172a", borderRadius: 8, borderLeft: "3px solid #334155" };
+const tipStyle = { fontSize: 13, color: "#a5b4fc", lineHeight: 1.6, marginTop: 14, padding: "10px 14px", background: "#0f172a", borderRadius: 8, borderLeft: "3px solid #4338ca" };
 const btnStyle = { background: "#6366f1", color: "#fff", border: "none", borderRadius: 10, padding: "14px 28px", fontSize: 15, fontWeight: 600, cursor: "pointer", width: "100%", marginTop: 20, fontFamily: "'DM Sans', sans-serif" };
 const btnSecStyle = { background: "transparent", color: "#6366f1", border: "1.5px solid #6366f1", borderRadius: 10, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer", width: "100%", marginTop: 10, fontFamily: "'DM Sans', sans-serif" };
 const inputStyle = { width: "100%", background: "#0f172a", border: "1.5px solid #334155", borderRadius: 10, padding: "14px 16px", color: "#e2e8f0", fontSize: 15, fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box" };
 
 export default function App() {
+  const totalSteps = GATES.length + SCORING_DIMS.length;
+
   const initScores = () => {
     const s = {};
     GATES.forEach(g => s[g.key] = 3);
@@ -245,8 +249,6 @@ export default function App() {
   const [emailError, setEmailError] = useState("");
   const [aiInsights, setAiInsights] = useState(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
-
-  const totalSteps = GATES.length + SCORING_DIMS.length;
 
   function setScore(key, val) { setScores(s => ({ ...s, [key]: val })); }
 
@@ -332,11 +334,28 @@ Respond ONLY with a JSON object, no markdown, no preamble:
     }
   }
 
+  function handleGateBack() {
+    if (gateIndex === 0) {
+      setStep("intro");
+    } else {
+      setGateIndex(i => i - 1);
+    }
+  }
+
   function handleScoringNext() {
     if (scoringIndex < SCORING_DIMS.length - 1) {
       setScoringIndex(i => i + 1);
     } else {
       setStep("emailGate");
+    }
+  }
+
+  function handleScoringBack() {
+    if (scoringIndex === 0) {
+      setStep("gates");
+      setGateIndex(GATES.length - 1);
+    } else {
+      setScoringIndex(i => i - 1);
     }
   }
 
@@ -358,6 +377,8 @@ Respond ONLY with a JSON object, no markdown, no preamble:
 
   const score = calcScore();
   const verdict = getVerdict(score);
+  const currentGate = GATES[gateIndex];
+  const currentDim = SCORING_DIMS[scoringIndex];
 
   return (
     <div style={wrapStyle}>
@@ -371,9 +392,7 @@ Respond ONLY with a JSON object, no markdown, no preamble:
           <p style={{ fontSize: 15, color: "#94a3b8", lineHeight: 1.7, marginBottom: 12 }}>
             Before buying a licence or briefing a team, find out whether your AI use case has the foundations to succeed — or whether you're about to solve the wrong problem with expensive technology.
           </p>
-          <p style={{ fontSize: 13, color: "#475569", lineHeight: 1.6, marginBottom: 24 }}>
-            10 questions. Under 5 minutes. A clear, honest verdict.
-          </p>
+          <p style={{ fontSize: 13, color: "#475569", lineHeight: 1.6, marginBottom: 24 }}>11 questions. Under 5 minutes. A clear, honest verdict.</p>
           <textarea
             style={{ ...inputStyle, resize: "vertical", minHeight: 90 }}
             placeholder="Describe the AI use case you're considering in one or two sentences..."
@@ -391,23 +410,24 @@ Respond ONLY with a JSON object, no markdown, no preamble:
         <div style={cardStyle}>
           <ProgressBar current={gateIndex} total={totalSteps} />
           <div style={labelStyle}>Foundation Gate {gateIndex + 1} of {GATES.length}</div>
-          <h2 style={questionStyle}>{GATES[gateIndex].question}</h2>
-          <div style={tipStyle}>{GATES[gateIndex].tip}</div>
+          <h2 style={questionStyle}>{currentGate.question}</h2>
+          <div style={tipStyle}>{currentGate.tip}</div>
           <div style={{ marginTop: 24, marginBottom: 8 }}>
             <div style={{ fontSize: 32, fontWeight: 700, color: "#6366f1", textAlign: "center", marginBottom: 4 }}>
-              {scores[GATES[gateIndex].key]}<span style={{ fontSize: 16, color: "#475569" }}>/5</span>
+              {scores[currentGate.key]}<span style={{ fontSize: 16, color: "#475569" }}>/5</span>
             </div>
             <div style={{ fontSize: 13, color: "#6366f1", textAlign: "center", marginBottom: 16, fontWeight: 600 }}>
-              {GATES[gateIndex].scale[scores[GATES[gateIndex].key] - 1]}
+              {currentGate.scale[scores[currentGate.key] - 1]}
             </div>
-            <input type="range" min="1" max="5" value={scores[GATES[gateIndex].key]}
-              onChange={e => setScore(GATES[gateIndex].key, Number(e.target.value))}
+            <input type="range" min="1" max="5" value={scores[currentGate.key]}
+              onChange={e => setScore(currentGate.key, Number(e.target.value))}
               style={{ width: "100%" }} />
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginTop: 6 }}>
-              {GATES[gateIndex].scale.map((l, i) => <span key={i} style={{ textAlign: "center", maxWidth: 60, lineHeight: 1.2 }}>{l}</span>)}
+              {currentGate.scale.map((l, i) => <span key={i} style={{ textAlign: "center", maxWidth: 60, lineHeight: 1.2 }}>{l}</span>)}
             </div>
           </div>
           <button style={btnStyle} onClick={handleGateNext}>Continue →</button>
+          <BackButton onClick={handleGateBack} />
         </div>
       )}
 
@@ -415,11 +435,7 @@ Respond ONLY with a JSON object, no markdown, no preamble:
       {step === "gateBlock" && failedGate && (
         <div style={cardStyle}>
           <div style={{ ...labelStyle, color: "#ef4444" }}>Assessment Stopped</div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#ef4444", lineHeight: 1.3, marginBottom: 16 }}>
-            {failedGate.key === "problemClarity" ? "Stop. Redefine." :
-             failedGate.key === "stakeholderValidation" ? "Stop. Go and ask." :
-             "Stop. Sort the transition first."}
-          </h2>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#ef4444", lineHeight: 1.3, marginBottom: 16 }}>{failedGate.stopTitle}</h2>
           <div style={{ background: "#1a0505", border: "1.5px solid #ef4444", borderRadius: 12, padding: "20px 22px", marginBottom: 20 }}>
             <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>🚫 {failedGate.label}</div>
             <p style={{ fontSize: 14, color: "#fca5a5", lineHeight: 1.75, margin: 0 }}>{failedGate.failMessage}</p>
@@ -431,20 +447,29 @@ Respond ONLY with a JSON object, no markdown, no preamble:
 
       {/* SCORING */}
       {step === "scoring" && (
-        <SliderQuestion
-          dim={SCORING_DIMS[scoringIndex]}
-          score={scores[SCORING_DIMS[scoringIndex].key]}
-          onChange={val => setScore(SCORING_DIMS[scoringIndex].key, val)}
-          progressCurrent={GATES.length + scoringIndex}
-          progressTotal={totalSteps}
-          labelPrefix={`${SCORING_DIMS[scoringIndex].label} — Question ${GATES.length + scoringIndex + 1} of ${totalSteps}`}
-        />
-      )}
-      {step === "scoring" && (
-        <div style={{ maxWidth: 600, width: "100%", marginTop: 12 }}>
+        <div style={cardStyle}>
+          <ProgressBar current={GATES.length + scoringIndex} total={totalSteps} />
+          <div style={labelStyle}>{currentDim.label} — Question {GATES.length + scoringIndex + 1} of {totalSteps}</div>
+          <h2 style={questionStyle}>{currentDim.question}</h2>
+          <div style={tipStyle}>{currentDim.tip}</div>
+          <div style={{ marginTop: 24, marginBottom: 8 }}>
+            <div style={{ fontSize: 32, fontWeight: 700, color: "#6366f1", textAlign: "center", marginBottom: 4 }}>
+              {scores[currentDim.key]}<span style={{ fontSize: 16, color: "#475569" }}>/5</span>
+            </div>
+            <div style={{ fontSize: 13, color: "#6366f1", textAlign: "center", marginBottom: 16, fontWeight: 600 }}>
+              {currentDim.scale[scores[currentDim.key] - 1]}
+            </div>
+            <input type="range" min="1" max="5" value={scores[currentDim.key]}
+              onChange={e => setScore(currentDim.key, Number(e.target.value))}
+              style={{ width: "100%" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginTop: 6 }}>
+              {currentDim.scale.map((l, i) => <span key={i} style={{ textAlign: "center", maxWidth: 56, lineHeight: 1.2 }}>{l}</span>)}
+            </div>
+          </div>
           <button style={btnStyle} onClick={handleScoringNext}>
             {scoringIndex < SCORING_DIMS.length - 1 ? "Next →" : "Get My Results →"}
           </button>
+          <BackButton onClick={handleScoringBack} />
         </div>
       )}
 
@@ -456,9 +481,7 @@ Respond ONLY with a JSON object, no markdown, no preamble:
           <p style={{ fontSize: 15, color: "#94a3b8", lineHeight: 1.7, marginBottom: 8 }}>
             Enter your email to see your Foundation Score, full diagnostic, and AI-generated insight — including your top risk and the single most important action to take next.
           </p>
-          <p style={{ fontSize: 12, color: "#475569", lineHeight: 1.5, marginBottom: 24 }}>
-            Your results will also be sent to your inbox. No spam, ever.
-          </p>
+          <p style={{ fontSize: 12, color: "#475569", lineHeight: 1.5, marginBottom: 24 }}>Your results will also be sent to your inbox. No spam, ever.</p>
           <input
             style={inputStyle}
             type="email"
@@ -468,9 +491,8 @@ Respond ONLY with a JSON object, no markdown, no preamble:
             onKeyDown={e => e.key === "Enter" && handleEmailSubmit()}
           />
           {emailError && <div style={{ fontSize: 12, color: "#ef4444", marginTop: 8 }}>{emailError}</div>}
-          <button style={{ ...btnStyle }} onClick={handleEmailSubmit}>
-            Show My Results →
-          </button>
+          <button style={btnStyle} onClick={handleEmailSubmit}>Show My Results →</button>
+          <BackButton onClick={() => { setStep("scoring"); setScoringIndex(SCORING_DIMS.length - 1); }} />
         </div>
       )}
 
@@ -479,7 +501,6 @@ Respond ONLY with a JSON object, no markdown, no preamble:
         <div style={{ ...cardStyle, maxWidth: 640 }}>
           <div style={labelStyle}>Corbelle — Use Case Validator</div>
 
-          {/* Score + Verdict */}
           <div style={{ display: "flex", gap: 20, alignItems: "center", marginBottom: 28 }}>
             <div style={{ width: 96, height: 96, borderRadius: "50%", background: `conic-gradient(${verdict?.color} ${score * 3.6}deg, #0f172a 0deg)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <div style={{ width: 74, height: 74, borderRadius: "50%", background: "#1e293b", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
@@ -493,12 +514,10 @@ Respond ONLY with a JSON object, no markdown, no preamble:
             </div>
           </div>
 
-          {/* Radar */}
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
             <RadarChart scores={scores} />
           </div>
 
-          {/* Dimension breakdown */}
           <div style={{ marginBottom: 28 }}>
             {SCORING_DIMS.map(dim => (
               <div key={dim.key} style={{ marginBottom: 14 }}>
@@ -512,7 +531,6 @@ Respond ONLY with a JSON object, no markdown, no preamble:
             ))}
           </div>
 
-          {/* AI Insight */}
           <div style={{ borderTop: "1px solid #334155", paddingTop: 22, marginBottom: 22 }}>
             <div style={{ fontSize: 11, color: "#6366f1", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 16 }}>AI-Generated Insight</div>
             {loadingInsights ? (
@@ -540,12 +558,11 @@ Respond ONLY with a JSON object, no markdown, no preamble:
                     <div style={{ fontSize: 14, color: "#e2e8f0", lineHeight: 1.7 }}>{aiInsights.timeframe}</div>
                   </div>
                 )}
-                <div style={{ fontSize: 12, color: "#334155", textAlign: "center", marginTop: 10 }}>✉️ A copy has been sent to {email}</div>
+                <div style={{ fontSize: 12, color: "#a5b4fc", textAlign: "center", marginTop: 10 }}>✉️ A copy has been sent to {email}</div>
               </>
             ) : null}
           </div>
 
-          {/* CTA */}
           <div style={{ background: "#0f172a", borderRadius: 12, padding: "20px 22px", marginBottom: 16, borderLeft: "3px solid #6366f1" }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: "#f1f5f9", marginBottom: 6 }}>Want to work through this with a thinking partner?</div>
             <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.6, marginBottom: 14 }}>Corbelle helps mid-size executives make confident AI decisions — without the hype, the wasted licences, or the expensive reversals.</div>
