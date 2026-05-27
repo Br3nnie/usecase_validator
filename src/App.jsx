@@ -1,67 +1,142 @@
 import { useState } from "react";
 
-const DIMENSIONS = {
-  problemClarity: {
+const GATES = [
+  {
+    key: "problemClarity",
     label: "Problem Clarity",
     question: "Can you describe the problem you're solving without mentioning any technology?",
-    hint: "Rate how clearly the core problem is defined, independent of any solution.",
-    isGate: true,
-    gateThreshold: 3,
-    gateFailMessage: "If you can't define the problem without referencing the technology, everything built on top of it is assumption, not insight. Go back to the problem before evaluating any solution.",
+    tip: "If you can't separate the problem from the solution, you're not solving a problem — you're justifying a purchase.",
+    scale: ["No", "Not really", "Getting there", "Mostly", "Clearly yes"],
+    failMessage: "You're not ready yet. If you can't describe the problem without mentioning the technology, you're not solving a problem... you're retrofitting a justification. This is exactly how organisations end up with expensive shelfware and a CTO explaining to the board why nobody's using the tool they just spent six figures on. Go back and define the problem first. The technology conversation comes later.",
   },
-  stakeholderValidation: {
+  {
+    key: "stakeholderValidation",
     label: "Stakeholder Validation",
-    question: "Have the people who actually experience this problem confirmed it's a real, recurring priority?",
-    hint: "Not your assumption — their words. Have they been asked?",
-    isGate: true,
-    gateThreshold: 3,
-    gateFailMessage: "Without validation from the people who live with this problem, you're solving for an executive hypothesis. That's how shelfware gets bought. Talk to the end users first.",
+    question: "Have the people who actually experience this problem confirmed it's a real, recurring issue?",
+    tip: "Don't assume — have you actually asked them? Exec assumptions are how shelfware gets bought.",
+    scale: ["Never asked", "Informally", "Some have", "Most have", "Formally confirmed"],
+    failMessage: "Please stop. You're solving a problem you've assumed exists. The people who actually live with this day-to-day haven't confirmed it's a real priority. This means you're about to invest time, money and political capital into something built on an exec hypothesis. We've seen this all before. It's how CoPilot got rolled out to 150 people who didn't ask for it and stopped using it within 9 days. Go and talk to the people on the ground first.",
   },
-  processMaturity: {
-    label: "Process Maturity",
-    question: "Is the underlying process documented, consistent, and reasonably understood today?",
-    hint: "If the process is chaotic or undocumented, AI will accelerate the chaos.",
-    weight: 0.4,
+  {
+    key: "changeReadiness",
+    label: "Change Readiness",
+    question: "Have the people affected been told this is coming, and is there a plan for managing the transition?",
+    tip: "The biggest mistake: no training investment = users excited for a week, then back to old habits.",
+    scale: ["No plan", "Vague intent", "In discussion", "Plan drafted", "Plan confirmed"],
+    failMessage: "The technology is the easy part. This is where most AI initiatives quietly die. Not because the tool didn't work, but because nobody told the people affected it was coming, nobody trained them, and nobody owned the transition. We've seen senior teams excited about AI on Monday and back to their old ways by Friday. Before you go any further, answer this: who specifically owns the change, how will people be trained, and what does good actually look like on day 30?",
   },
-  dataReadiness: {
-    label: "Data Readiness",
-    question: "Does the right data exist, is it accessible, and is it clean enough to act on?",
-    hint: "AI is only as good as the data feeding it. Garbage in, garbage out.",
-    weight: 0.35,
-  },
-  roiRealism: {
-    label: "ROI Realism",
-    question: "Can you articulate what success looks like in measurable, specific terms?",
-    hint: "Not 'efficiency gains' — actual numbers, timelines, and owners.",
+];
+
+const SCORING_DIMS = [
+  {
+    key: "processQuality",
+    label: "Process Quality",
     weight: 0.25,
+    question: "Is the process you're applying AI to already lean and documented, or are you hoping AI will fix underlying problems?",
+    tip: "AI accelerates what's already there — good or bad. Fix the process before you automate it.",
+    scale: ["Broken", "Inconsistent", "Functional", "Documented", "Lean & proven"],
+    blocker: [
+      "The process is broken. AI won't fix this — it will make the mess move faster.",
+      "Too inconsistent to automate reliably. Standardise first.",
+      "Functional but not optimised. Worth mapping before adding AI.",
+      "Well documented. Minor inefficiencies worth resolving before deploying.",
+      "Strong process foundation. Ready for AI overlay.",
+    ],
   },
-};
+  {
+    key: "dataReadiness",
+    label: "Data Readiness",
+    weight: 0.20,
+    question: "Does the right data exist, is it accessible, and clean enough to act on?",
+    tip: "Garbage in, garbage out. AI is only as good as the data feeding it.",
+    scale: ["Doesn't exist", "Exists but messy", "Accessible but unclean", "Mostly clean", "Clean & accessible"],
+    blocker: [
+      "Critical data gaps — AI cannot function reliably without addressing these first.",
+      "Data exists but quality issues will undermine every output.",
+      "Data is usable but needs cleansing or governance work before scaling.",
+      "Data is largely ready. Spot-check quality before deployment.",
+      "Strong data readiness. Proceed with confidence.",
+    ],
+  },
+  {
+    key: "successDefinition",
+    label: "Success Definition",
+    weight: 0.20,
+    question: "Have you defined specific metrics for both adoption and engagement before you start?",
+    tip: "Adoption and engagement are two different things. 'People are using it' is not a success metric.",
+    scale: ["Not defined", "Vague goals", "One metric", "Adoption only", "Both defined"],
+    blocker: [
+      "No definition of success. You won't know if it's working or failing.",
+      "Vague goals won't survive first contact with reality. Get specific.",
+      "One metric isn't enough. Define both adoption and engagement.",
+      "Adoption metrics exist but engagement is undefined. Add stickiness measures.",
+      "Clear success definition. You'll know exactly what good looks like.",
+    ],
+  },
+  {
+    key: "executiveSponsorship",
+    label: "Executive Sponsorship",
+    weight: 0.15,
+    question: "Is there a named executive who owns this initiative and can unblock decisions when needed?",
+    tip: "Without a named sponsor, AI initiatives die in committee. The CEO asking 'are we doing AI yet?' is not sponsorship.",
+    scale: ["No sponsor", "Interest only", "Informally agreed", "Named but passive", "Named & active"],
+    blocker: [
+      "No sponsor means no decisions get made when it gets hard. It will get hard.",
+      "Interest isn't ownership. Someone needs to be accountable.",
+      "Informal agreement isn't enough when budget or headcount is on the line.",
+      "Named but passive won't cut it. They need to actively unblock.",
+      "Strong executive sponsorship. This initiative has the backing it needs.",
+    ],
+  },
+  {
+    key: "governanceReadiness",
+    label: "Governance Readiness",
+    weight: 0.10,
+    question: "Do you have a policy covering data upload, IP protection, and acceptable use before this goes live?",
+    tip: "Senior staff uploading confidential documents to public LLMs is not hypothetical — it happens on day one without clear guardrails.",
+    scale: ["No policy", "Being drafted", "Partial policy", "Policy exists", "Policy + attestation"],
+    blocker: [
+      "No guardrails means day one is a data risk. Sort this before launch.",
+      "A draft policy is better than nothing but won't protect you if something goes wrong.",
+      "Partial policy leaves gaps. Close them before going live.",
+      "Policy exists. Make sure staff have read and understood it.",
+      "Strong governance foundation. Policy and accountability in place.",
+    ],
+  },
+  {
+    key: "roiRealism",
+    label: "ROI Realism",
+    weight: 0.05,
+    question: "Can you articulate what success looks like in measurable terms with a timeframe and an owner?",
+    tip: "'Efficiency gains' is not a metric. Name the number, the date, and the person accountable.",
+    scale: ["No idea", "Rough guess", "Defined metric", "Metric + owner", "Metric + owner + deadline"],
+    blocker: [
+      "No ROI definition. You're flying blind on value.",
+      "A rough guess won't survive a board question. Get specific.",
+      "A metric without an owner is just a wish.",
+      "Metric and owner are good. Add a deadline to create accountability.",
+      "Clear, measurable ROI definition with full accountability.",
+    ],
+  },
+  {
+    key: "dependencyContinuity",
+    label: "Dependency & Continuity",
+    weight: 0.05,
+    question: "If this AI tool had an outage or became 3× more expensive tomorrow, would this process still function?",
+    tip: "OpenAI went down and gaps appeared immediately in firms that had embedded it without a fallback.",
+    scale: ["Total dependency", "No plan", "Partial fallback", "Fallback exists", "Fully resilient"],
+    blocker: [
+      "Complete single point of failure. This needs a contingency plan before going live.",
+      "No plan means a vendor outage becomes your operational crisis.",
+      "Partial fallback is better than nothing but document it properly.",
+      "Fallback exists. Test it before you need it.",
+      "Fully resilient. No single point of failure.",
+    ],
+  },
+];
 
-const LABELS = ["Not at all", "Unlikely", "Partially", "Mostly", "Clearly yes"];
-
-const BLOCKERS = {
-  processMaturity: [
-    "The process is too undefined to automate — you'll accelerate the wrong thing.",
-    "Some process documentation exists but gaps will surface under AI load.",
-    "Process is reasonably consistent but would benefit from mapping before automating.",
-    "Good process maturity. Minor inconsistencies worth resolving before full deployment.",
-    "Strong process foundation. Ready for automation overlay.",
-  ],
-  dataReadiness: [
-    "Critical data gaps — AI cannot function reliably without addressing these first.",
-    "Data exists but accessibility or quality issues will undermine outputs.",
-    "Data is usable but needs cleansing or governance work before scaling.",
-    "Data is largely ready. Spot-check quality before deployment.",
-    "Strong data readiness. Proceed with confidence on data foundations.",
-  ],
-  roiRealism: [
-    "No measurable definition of success — risk of a solution looking for a problem.",
-    "Success is loosely defined. Sharpen the metrics before committing resources.",
-    "Reasonable ROI framing but could be more specific on timelines and ownership.",
-    "Good ROI definition. Confirm measurement mechanisms are in place.",
-    "Clear, measurable ROI definition. Strong basis for investment decision.",
-  ],
-};
+const RADAR_DIMS = ["processQuality", "dataReadiness", "successDefinition", "executiveSponsorship", "governanceReadiness"];
+const RADAR_LABELS = ["Process\nQuality", "Data\nReadiness", "Success\nDefinition", "Exec\nSponsorship", "Governance"];
 
 const VERDICT_BANDS = [
   { min: 80, label: "Strong Foundation", color: "#22c55e", icon: "✅", message: "Your use case has solid foundations. The logical next step is a process blueprint before selecting any technology." },
@@ -71,41 +146,28 @@ const VERDICT_BANDS = [
 ];
 
 function RadarChart({ scores }) {
-  const dims = ["processMaturity", "dataReadiness", "roiRealism"];
-  const labels = ["Process\nMaturity", "Data\nReadiness", "ROI\nRealism"];
   const cx = 160, cy = 160, r = 110;
   const levels = [0.2, 0.4, 0.6, 0.8, 1.0];
-  function polarToCartesian(angle, radius) {
+  function polar(angle, radius) {
     const rad = (angle - 90) * (Math.PI / 180);
     return { x: cx + radius * Math.cos(rad), y: cy + radius * Math.sin(rad) };
   }
-  const angles = dims.map((_, i) => (i / dims.length) * 360);
-  const gridPolygons = levels.map(level => {
-    const pts = angles.map(a => polarToCartesian(a, r * level));
-    return pts.map(p => `${p.x},${p.y}`).join(" ");
-  });
-  const scorePts = dims.map((d, i) => {
-    const val = (scores[d] || 0) / 5;
-    return polarToCartesian(angles[i], r * val);
-  });
+  const angles = RADAR_DIMS.map((_, i) => (i / RADAR_DIMS.length) * 360);
+  const gridPts = levels.map(l => angles.map(a => polar(a, r * l)).map(p => `${p.x},${p.y}`).join(" "));
+  const scorePts = RADAR_DIMS.map((d, i) => polar(angles[i], r * ((scores[d] || 1) / 5)));
   const scorePolygon = scorePts.map(p => `${p.x},${p.y}`).join(" ");
   return (
-    <svg viewBox="0 0 320 320" style={{ width: "100%", maxWidth: 280 }}>
-      {gridPolygons.map((pts, i) => <polygon key={i} points={pts} fill="none" stroke="#334155" strokeWidth="1" />)}
-      {angles.map((angle, i) => {
-        const pt = polarToCartesian(angle, r);
-        return <line key={i} x1={cx} y1={cy} x2={pt.x} y2={pt.y} stroke="#334155" strokeWidth="1" />;
-      })}
+    <svg viewBox="0 0 320 320" style={{ width: "100%", maxWidth: 300 }}>
+      {gridPts.map((pts, i) => <polygon key={i} points={pts} fill="none" stroke="#334155" strokeWidth="1" />)}
+      {angles.map((angle, i) => { const pt = polar(angle, r); return <line key={i} x1={cx} y1={cy} x2={pt.x} y2={pt.y} stroke="#334155" strokeWidth="1" />; })}
       <polygon points={scorePolygon} fill="rgba(99,102,241,0.25)" stroke="#6366f1" strokeWidth="2" />
       {scorePts.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="5" fill="#6366f1" />)}
       {angles.map((angle, i) => {
-        const pt = polarToCartesian(angle, r + 26);
-        const lines = labels[i].split("\n");
+        const pt = polar(angle, r + 28);
+        const lines = RADAR_LABELS[i].split("\n");
         return (
-          <text key={i} x={pt.x} y={pt.y} textAnchor="middle" fill="#94a3b8" fontSize="11" fontFamily="'DM Sans', sans-serif">
-            {lines.map((line, j) => (
-              <tspan key={j} x={pt.x} dy={j === 0 ? (lines.length > 1 ? "-0.5em" : "0") : "1.2em"}>{line}</tspan>
-            ))}
+          <text key={i} x={pt.x} y={pt.y} textAnchor="middle" fill="#94a3b8" fontSize="10.5" fontFamily="'DM Sans', sans-serif">
+            {lines.map((line, j) => <tspan key={j} x={pt.x} dy={j === 0 ? (lines.length > 1 ? "-0.5em" : "0") : "1.2em"}>{line}</tspan>)}
           </text>
         );
       })}
@@ -115,61 +177,110 @@ function RadarChart({ scores }) {
 
 function ScoreBar({ value }) {
   return (
-    <div style={{ background: "#1e293b", borderRadius: 4, height: 6, width: "100%", overflow: "hidden" }}>
+    <div style={{ background: "#0f172a", borderRadius: 4, height: 6, width: "100%", overflow: "hidden" }}>
       <div style={{ width: `${(value / 5) * 100}%`, height: "100%", background: "#6366f1", borderRadius: 4, transition: "width 0.6s ease" }} />
     </div>
   );
 }
 
+function SliderQuestion({ dim, score, onChange, progressCurrent, progressTotal, labelPrefix }) {
+  const scale = dim.scale;
+  return (
+    <div style={cardStyle}>
+      <ProgressBar current={progressCurrent} total={progressTotal} />
+      <div style={labelStyle}>{labelPrefix}</div>
+      <h2 style={questionStyle}>{dim.question}</h2>
+      <div style={tipStyle}>{dim.tip}</div>
+      <div style={{ marginTop: 24, marginBottom: 8 }}>
+        <div style={{ fontSize: 32, fontWeight: 700, color: "#6366f1", textAlign: "center", marginBottom: 4 }}>
+          {score}<span style={{ fontSize: 16, color: "#475569" }}>/5</span>
+        </div>
+        <div style={{ fontSize: 13, color: "#6366f1", textAlign: "center", marginBottom: 16, fontWeight: 600 }}>
+          {scale[score - 1]}
+        </div>
+        <input type="range" min="1" max="5" value={score} onChange={e => onChange(Number(e.target.value))} style={{ width: "100%" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginTop: 6 }}>
+          {scale.map((l, i) => <span key={i} style={{ textAlign: "center", maxWidth: 56, lineHeight: 1.2 }}>{l}</span>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProgressBar({ current, total }) {
+  return (
+    <div style={{ display: "flex", gap: 5, marginBottom: 24 }}>
+      {Array.from({ length: total }).map((_, i) => (
+        <div key={i} style={{ height: 4, flex: 1, borderRadius: 4, background: i < current ? "#6366f1" : i === current ? "#818cf8" : "#1e293b", border: i >= current ? "1px solid #334155" : "none" }} />
+      ))}
+    </div>
+  );
+}
+
+// Shared styles
+const wrapStyle = { minHeight: "100vh", background: "#0f172a", color: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px" };
+const cardStyle = { background: "#1e293b", borderRadius: 16, padding: "36px 32px", maxWidth: 600, width: "100%", boxShadow: "0 25px 60px rgba(0,0,0,0.5)" };
+const labelStyle = { fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "#6366f1", fontWeight: 700, marginBottom: 10 };
+const questionStyle = { fontSize: 20, fontWeight: 700, color: "#f1f5f9", lineHeight: 1.35, marginBottom: 0 };
+const tipStyle = { fontSize: 13, color: "#475569", lineHeight: 1.6, marginTop: 14, padding: "10px 14px", background: "#0f172a", borderRadius: 8, borderLeft: "3px solid #334155" };
+const btnStyle = { background: "#6366f1", color: "#fff", border: "none", borderRadius: 10, padding: "14px 28px", fontSize: 15, fontWeight: 600, cursor: "pointer", width: "100%", marginTop: 20, fontFamily: "'DM Sans', sans-serif" };
+const btnSecStyle = { background: "transparent", color: "#6366f1", border: "1.5px solid #6366f1", borderRadius: 10, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer", width: "100%", marginTop: 10, fontFamily: "'DM Sans', sans-serif" };
+const inputStyle = { width: "100%", background: "#0f172a", border: "1.5px solid #334155", borderRadius: 10, padding: "14px 16px", color: "#e2e8f0", fontSize: 15, fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box" };
+
 export default function App() {
-  const [useCase, setUseCase] = useState("");
+  const initScores = () => {
+    const s = {};
+    GATES.forEach(g => s[g.key] = 3);
+    SCORING_DIMS.forEach(d => s[d.key] = 3);
+    return s;
+  };
+
   const [step, setStep] = useState("intro");
-  const [scores, setScores] = useState({ problemClarity: 3, stakeholderValidation: 3, processMaturity: 3, dataReadiness: 3, roiRealism: 3 });
+  const [useCase, setUseCase] = useState("");
+  const [scores, setScores] = useState(initScores());
   const [gateIndex, setGateIndex] = useState(0);
   const [scoringIndex, setScoringIndex] = useState(0);
   const [failedGate, setFailedGate] = useState(null);
-  const [dependencyRisk, setDependencyRisk] = useState(null);
   const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [aiInsights, setAiInsights] = useState(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
-  const [emailError, setEmailError] = useState("");
 
-  const gates = ["problemClarity", "stakeholderValidation"];
-  const scoringDims = ["processMaturity", "dataReadiness", "roiRealism"];
+  const totalSteps = GATES.length + SCORING_DIMS.length;
+
+  function setScore(key, val) { setScores(s => ({ ...s, [key]: val })); }
 
   function calcScore() {
-    const weighted =
-      (scores.processMaturity / 5) * 0.4 +
-      (scores.dataReadiness / 5) * 0.35 +
-      (scores.roiRealism / 5) * 0.25;
-    return Math.round(weighted * 100);
+    return Math.round(SCORING_DIMS.reduce((acc, d) => acc + (scores[d.key] / 5) * d.weight, 0) * 100);
   }
 
-  function getVerdict(score) {
-    return VERDICT_BANDS.find(b => score >= b.min);
-  }
+  function getVerdict(score) { return VERDICT_BANDS.find(b => score >= b.min); }
 
   async function fetchInsights(submittedEmail) {
     setLoadingInsights(true);
     const score = calcScore();
     const verdict = getVerdict(score);
-    const prompt = `You are an AI strategy advisor helping a mid-size business executive evaluate an AI use case.
+    const dimSummary = SCORING_DIMS.map(d => `- ${d.label}: ${scores[d.key]}/5 (${d.scale[scores[d.key]-1]})`).join("\n");
+
+    const prompt = `You are a senior AI strategy advisor with deep experience helping mid-size businesses make confident AI decisions. You've seen countless AI initiatives fail — not because the technology didn't work, but because the foundations weren't in place.
+
+A business executive has just completed an AI use case assessment. Here are their results:
 
 Use case: "${useCase}"
 
-Scores (1-5):
-- Process Maturity: ${scores.processMaturity}/5
-- Data Readiness: ${scores.dataReadiness}/5
-- ROI Realism: ${scores.roiRealism}/5
-- AI Dependency Risk: ${dependencyRisk === "yes" ? "YES - process would fail if AI became unavailable" : "NO - process has fallback"}
+Dimension scores:
+${dimSummary}
 
 Foundation Score: ${score}/100
+Verdict: ${verdict?.label}
+
+Your job is to give them a sharp, experienced advisor's view. Not generic AI advice. Specific to their scores. Reference the patterns you've seen before — tech-led adoption failures, missing success metrics, process debt, governance gaps, lack of executive ownership.
 
 Respond ONLY with a JSON object, no markdown, no preamble:
 {
-  "topRisk": "One sentence naming the single biggest risk with this use case given the scores",
-  "firstAction": "One concrete action the executive should take before proceeding — specific, not generic",
-  "timeframe": "Realistic timeframe to address the main gap (e.g. '4-6 weeks', '2-3 months')"
+  "topRisk": "2-3 sentences. The single biggest risk given their specific score pattern. Be direct and specific — name what will go wrong and why based on their weakest dimensions.",
+  "firstAction": "2-3 sentences. The one concrete action they must take before anything else. Not vague. Name who should do it, what they should do, and why it unblocks everything else.",
+  "timeframe": "One sentence. Realistic timeframe to address the main gap and why that timeline makes sense."
 }`;
 
     try {
@@ -184,39 +295,49 @@ Respond ONLY with a JSON object, no markdown, no preamble:
           verdictLabel: verdict?.label,
         }),
       });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error("API error:", errText);
+        setAiInsights({ topRisk: "Unable to generate insight at this time. Please try again.", firstAction: "", timeframe: "" });
+        setLoadingInsights(false);
+        return;
+      }
+
       const data = await response.json();
-      setAiInsights(data);
+      if (data.error) {
+        console.error("Insight error:", data.error, data.detail);
+        setAiInsights({ topRisk: "Unable to generate insight at this time.", firstAction: "Review your dimension scores and address the lowest-scoring area first.", timeframe: "Varies by gap severity." });
+      } else {
+        setAiInsights(data);
+      }
     } catch (e) {
-      setAiInsights({ topRisk: "Unable to generate insight.", firstAction: "Review your scores manually.", timeframe: "—" });
+      console.error("Fetch error:", e);
+      setAiInsights({ topRisk: "Unable to generate insight at this time.", firstAction: "Review your dimension scores and address the lowest-scoring area first.", timeframe: "Varies by gap severity." });
     }
     setLoadingInsights(false);
   }
 
   function handleGateNext() {
-    const dim = gates[gateIndex];
-    if (scores[dim] < DIMENSIONS[dim].gateThreshold) {
-      setFailedGate(dim);
+    const gate = GATES[gateIndex];
+    if (scores[gate.key] < 3) {
+      setFailedGate(gate);
       setStep("gateBlock");
       return;
     }
-    if (gateIndex < gates.length - 1) {
-      setGateIndex(gateIndex + 1);
+    if (gateIndex < GATES.length - 1) {
+      setGateIndex(i => i + 1);
     } else {
       setStep("scoring");
     }
   }
 
   function handleScoringNext() {
-    if (scoringIndex < scoringDims.length - 1) {
-      setScoringIndex(scoringIndex + 1);
+    if (scoringIndex < SCORING_DIMS.length - 1) {
+      setScoringIndex(i => i + 1);
     } else {
-      setStep("dependency");
+      setStep("emailGate");
     }
-  }
-
-  function handleDependency(answer) {
-    setDependencyRisk(answer);
-    setStep("results");
   }
 
   function handleEmailSubmit() {
@@ -225,56 +346,41 @@ Respond ONLY with a JSON object, no markdown, no preamble:
       return;
     }
     setEmailError("");
-    setStep("insightUnlocked");
+    setStep("results");
     fetchInsights(email);
   }
 
   function reset() {
-    setUseCase(""); setStep("intro");
-    setScores({ problemClarity: 3, stakeholderValidation: 3, processMaturity: 3, dataReadiness: 3, roiRealism: 3 });
+    setStep("intro"); setUseCase(""); setScores(initScores());
     setGateIndex(0); setScoringIndex(0); setFailedGate(null);
-    setDependencyRisk(null); setEmail(""); setAiInsights(null); setEmailError("");
+    setEmail(""); setEmailError(""); setAiInsights(null);
   }
 
   const score = calcScore();
   const verdict = getVerdict(score);
 
-  const s = {
-    wrap: { minHeight: "100vh", background: "#0f172a", color: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px" },
-    card: { background: "#1e293b", borderRadius: 16, padding: "40px 36px", maxWidth: 580, width: "100%", boxShadow: "0 25px 60px rgba(0,0,0,0.5)" },
-    label: { fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "#6366f1", fontWeight: 700, marginBottom: 8 },
-    h1: { fontSize: 26, fontWeight: 700, color: "#f1f5f9", lineHeight: 1.25, marginBottom: 8 },
-    body: { fontSize: 15, color: "#94a3b8", lineHeight: 1.6, marginBottom: 24 },
-    input: { width: "100%", background: "#0f172a", border: "1.5px solid #334155", borderRadius: 10, padding: "14px 16px", color: "#e2e8f0", fontSize: 15, fontFamily: "'DM Sans', sans-serif", resize: "vertical", minHeight: 80, boxSizing: "border-box" },
-    emailInput: { width: "100%", background: "#0f172a", border: "1.5px solid #334155", borderRadius: 10, padding: "14px 16px", color: "#e2e8f0", fontSize: 15, fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box" },
-    btn: { background: "#6366f1", color: "#fff", border: "none", borderRadius: 10, padding: "14px 28px", fontSize: 15, fontWeight: 600, cursor: "pointer", width: "100%", marginTop: 16, fontFamily: "'DM Sans', sans-serif" },
-    btnSecondary: { background: "transparent", color: "#6366f1", border: "1.5px solid #6366f1", borderRadius: 10, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer", width: "100%", marginTop: 10, fontFamily: "'DM Sans', sans-serif" },
-    sliderWrap: { marginTop: 20, marginBottom: 8 },
-    sliderVal: { fontSize: 32, fontWeight: 700, color: "#6366f1", textAlign: "center", marginBottom: 4 },
-    sliderLabel: { fontSize: 13, color: "#64748b", textAlign: "center", marginBottom: 16 },
-    hint: { fontSize: 13, color: "#475569", lineHeight: 1.5, marginTop: 12, padding: "10px 14px", background: "#0f172a", borderRadius: 8, borderLeft: "3px solid #334155" },
-    progress: { display: "flex", gap: 6, marginBottom: 28 },
-    progressDot: (active, done) => ({ height: 4, flex: 1, borderRadius: 4, background: done ? "#6366f1" : active ? "#818cf8" : "#0f172a", border: done || active ? "none" : "1px solid #334155" }),
-    blockBanner: { background: "#1e0a0a", border: "1.5px solid #ef4444", borderRadius: 12, padding: "20px", marginBottom: 20 },
-    riskBanner: { background: "#1a0f00", border: "1.5px solid #f97316", borderRadius: 12, padding: "16px 20px", marginBottom: 20, display: "flex", gap: 12, alignItems: "flex-start" },
-    scoreCircle: { width: 100, height: 100, borderRadius: "50%", background: `conic-gradient(${verdict?.color} ${score * 3.6}deg, #0f172a 0deg)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
-    scoreInner: { width: 78, height: 78, borderRadius: "50%", background: "#1e293b", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" },
-    insightCard: { background: "#0f172a", borderRadius: 10, padding: "16px 18px", marginBottom: 12 },
-    lockedCard: { background: "#0f172a", borderRadius: 12, padding: "24px", border: "1.5px solid #334155", marginBottom: 20 },
-    blurRow: { height: 12, borderRadius: 4, background: "#1e293b", marginBottom: 8 },
-  };
-
   return (
-    <div style={s.wrap}>
+    <div style={wrapStyle}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
       {/* INTRO */}
       {step === "intro" && (
-        <div style={s.card}>
-          <div style={s.label}>ClearFoundation</div>
-          <h1 style={s.h1}>AI Use Case Validator</h1>
-          <p style={s.body}>Before buying a licence or briefing a team, find out whether your AI use case has the foundations to succeed — or whether you're solving the wrong problem with expensive technology.</p>
-          <p style={{ ...s.body, marginBottom: 0, fontSize: 14 }}>Takes under 4 minutes. No fluff. Just a clear verdict.</p>
-          <textarea style={{ ...s.input, marginTop: 24 }} placeholder="Describe the AI use case you're considering in one or two sentences..." value={useCase} onChange={e => setUseCase(e.target.value)} />
-          <button style={{ ...s.btn, opacity: useCase.trim().length < 10 ? 0.5 : 1 }} disabled={useCase.trim().length < 10} onClick={() => setStep("gates")}>
+        <div style={cardStyle}>
+          <div style={labelStyle}>Corbelle</div>
+          <h1 style={{ fontSize: 28, fontWeight: 700, color: "#f1f5f9", lineHeight: 1.2, marginBottom: 12 }}>Use Case Validator</h1>
+          <p style={{ fontSize: 15, color: "#94a3b8", lineHeight: 1.7, marginBottom: 12 }}>
+            Before buying a licence or briefing a team, find out whether your AI use case has the foundations to succeed — or whether you're about to solve the wrong problem with expensive technology.
+          </p>
+          <p style={{ fontSize: 13, color: "#475569", lineHeight: 1.6, marginBottom: 24 }}>
+            10 questions. Under 5 minutes. A clear, honest verdict.
+          </p>
+          <textarea
+            style={{ ...inputStyle, resize: "vertical", minHeight: 90 }}
+            placeholder="Describe the AI use case you're considering in one or two sentences..."
+            value={useCase}
+            onChange={e => setUseCase(e.target.value)}
+          />
+          <button style={{ ...btnStyle, opacity: useCase.trim().length < 10 ? 0.45 : 1 }} disabled={useCase.trim().length < 10} onClick={() => setStep("gates")}>
             Begin Assessment →
           </button>
         </div>
@@ -282,213 +388,174 @@ Respond ONLY with a JSON object, no markdown, no preamble:
 
       {/* GATES */}
       {step === "gates" && (
-        <div style={s.card}>
-          <div style={s.progress}>
-            {gates.map((_, i) => <div key={i} style={s.progressDot(i === gateIndex, i < gateIndex)} />)}
+        <div style={cardStyle}>
+          <ProgressBar current={gateIndex} total={totalSteps} />
+          <div style={labelStyle}>Foundation Gate {gateIndex + 1} of {GATES.length}</div>
+          <h2 style={questionStyle}>{GATES[gateIndex].question}</h2>
+          <div style={tipStyle}>{GATES[gateIndex].tip}</div>
+          <div style={{ marginTop: 24, marginBottom: 8 }}>
+            <div style={{ fontSize: 32, fontWeight: 700, color: "#6366f1", textAlign: "center", marginBottom: 4 }}>
+              {scores[GATES[gateIndex].key]}<span style={{ fontSize: 16, color: "#475569" }}>/5</span>
+            </div>
+            <div style={{ fontSize: 13, color: "#6366f1", textAlign: "center", marginBottom: 16, fontWeight: 600 }}>
+              {GATES[gateIndex].scale[scores[GATES[gateIndex].key] - 1]}
+            </div>
+            <input type="range" min="1" max="5" value={scores[GATES[gateIndex].key]}
+              onChange={e => setScore(GATES[gateIndex].key, Number(e.target.value))}
+              style={{ width: "100%" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginTop: 6 }}>
+              {GATES[gateIndex].scale.map((l, i) => <span key={i} style={{ textAlign: "center", maxWidth: 60, lineHeight: 1.2 }}>{l}</span>)}
+            </div>
           </div>
-          <div style={s.label}>Foundation Gate {gateIndex + 1} of {gates.length}</div>
-          <h1 style={{ ...s.h1, fontSize: 20 }}>{DIMENSIONS[gates[gateIndex]].question}</h1>
-          <div style={s.hint}>{DIMENSIONS[gates[gateIndex]].hint}</div>
-          <div style={s.sliderWrap}>
-            <div style={s.sliderVal}>{scores[gates[gateIndex]]}<span style={{ fontSize: 16, color: "#475569" }}>/5</span></div>
-            <div style={s.sliderLabel}>{LABELS[scores[gates[gateIndex]] - 1]}</div>
-            <input type="range" min="1" max="5" value={scores[gates[gateIndex]]} onChange={e => setScores({ ...scores, [gates[gateIndex]]: Number(e.target.value) })} />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginTop: 4 }}><span>1 — No</span><span>5 — Yes</span></div>
-          </div>
-          <button style={s.btn} onClick={handleGateNext}>Continue →</button>
+          <button style={btnStyle} onClick={handleGateNext}>Continue →</button>
         </div>
       )}
 
       {/* GATE BLOCK */}
       {step === "gateBlock" && failedGate && (
-        <div style={s.card}>
-          <div style={s.label}>Gate Check Failed</div>
-          <h1 style={{ ...s.h1, fontSize: 20, color: "#ef4444" }}>Stop. Redefine.</h1>
-          <div style={s.blockBanner}>
-            <div style={{ fontSize: 13, color: "#fca5a5", fontWeight: 600, marginBottom: 6 }}>🚫 {DIMENSIONS[failedGate].label}</div>
-            <p style={{ fontSize: 14, color: "#fca5a5", lineHeight: 1.6, margin: 0 }}>{DIMENSIONS[failedGate].gateFailMessage}</p>
+        <div style={cardStyle}>
+          <div style={{ ...labelStyle, color: "#ef4444" }}>Assessment Stopped</div>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#ef4444", lineHeight: 1.3, marginBottom: 16 }}>
+            {failedGate.key === "problemClarity" ? "Stop. Redefine." :
+             failedGate.key === "stakeholderValidation" ? "Stop. Go and ask." :
+             "Stop. Sort the transition first."}
+          </h2>
+          <div style={{ background: "#1a0505", border: "1.5px solid #ef4444", borderRadius: 12, padding: "20px 22px", marginBottom: 20 }}>
+            <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>🚫 {failedGate.label}</div>
+            <p style={{ fontSize: 14, color: "#fca5a5", lineHeight: 1.75, margin: 0 }}>{failedGate.failMessage}</p>
           </div>
-          <p style={{ ...s.body, fontSize: 14 }}>No score is generated. The foundations aren't in place to evaluate this use case objectively.</p>
-          <button style={s.btn} onClick={reset}>Start Again</button>
+          <p style={{ fontSize: 13, color: "#475569", lineHeight: 1.6, marginBottom: 0 }}>No score has been generated. Come back when this foundation is in place.</p>
+          <button style={btnStyle} onClick={reset}>Start Again</button>
         </div>
       )}
 
       {/* SCORING */}
       {step === "scoring" && (
-        <div style={s.card}>
-          <div style={s.progress}>
-            {scoringDims.map((_, i) => <div key={i} style={s.progressDot(i === scoringIndex, i < scoringIndex)} />)}
-          </div>
-          <div style={s.label}>{DIMENSIONS[scoringDims[scoringIndex]].label}</div>
-          <h1 style={{ ...s.h1, fontSize: 20 }}>{DIMENSIONS[scoringDims[scoringIndex]].question}</h1>
-          <div style={s.hint}>{DIMENSIONS[scoringDims[scoringIndex]].hint}</div>
-          <div style={s.sliderWrap}>
-            <div style={s.sliderVal}>{scores[scoringDims[scoringIndex]]}<span style={{ fontSize: 16, color: "#475569" }}>/5</span></div>
-            <div style={s.sliderLabel}>{LABELS[scores[scoringDims[scoringIndex]] - 1]}</div>
-            <input type="range" min="1" max="5" value={scores[scoringDims[scoringIndex]]} onChange={e => setScores({ ...scores, [scoringDims[scoringIndex]]: Number(e.target.value) })} />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginTop: 4 }}><span>1 — No</span><span>5 — Yes</span></div>
-          </div>
-          <button style={s.btn} onClick={handleScoringNext}>{scoringIndex < scoringDims.length - 1 ? "Next →" : "Final Check →"}</button>
+        <SliderQuestion
+          dim={SCORING_DIMS[scoringIndex]}
+          score={scores[SCORING_DIMS[scoringIndex].key]}
+          onChange={val => setScore(SCORING_DIMS[scoringIndex].key, val)}
+          progressCurrent={GATES.length + scoringIndex}
+          progressTotal={totalSteps}
+          labelPrefix={`${SCORING_DIMS[scoringIndex].label} — Question ${GATES.length + scoringIndex + 1} of ${totalSteps}`}
+        />
+      )}
+      {step === "scoring" && (
+        <div style={{ maxWidth: 600, width: "100%", marginTop: 12 }}>
+          <button style={btnStyle} onClick={handleScoringNext}>
+            {scoringIndex < SCORING_DIMS.length - 1 ? "Next →" : "Get My Results →"}
+          </button>
         </div>
       )}
 
-      {/* DEPENDENCY */}
-      {step === "dependency" && (
-        <div style={s.card}>
-          <div style={s.label}>Dependency Risk Check</div>
-          <h1 style={{ ...s.h1, fontSize: 20 }}>If this AI tool became unavailable or 3× more expensive tomorrow — would this process still function?</h1>
-          <p style={s.body}>This isn't about likelihood. It's about whether you've built contingency into your decision.</p>
-          <button style={{ ...s.btn, marginTop: 8 }} onClick={() => handleDependency("yes")}>No — the process would break or become unaffordable</button>
-          <button style={s.btnSecondary} onClick={() => handleDependency("no")}>Yes — we have fallback options or human alternatives</button>
+      {/* EMAIL GATE */}
+      {step === "emailGate" && (
+        <div style={cardStyle}>
+          <div style={labelStyle}>Corbelle</div>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#f1f5f9", lineHeight: 1.3, marginBottom: 12 }}>Your results are ready.</h2>
+          <p style={{ fontSize: 15, color: "#94a3b8", lineHeight: 1.7, marginBottom: 8 }}>
+            Enter your email to see your Foundation Score, full diagnostic, and AI-generated insight — including your top risk and the single most important action to take next.
+          </p>
+          <p style={{ fontSize: 12, color: "#475569", lineHeight: 1.5, marginBottom: 24 }}>
+            Your results will also be sent to your inbox. No spam, ever.
+          </p>
+          <input
+            style={inputStyle}
+            type="email"
+            placeholder="Your work email address"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleEmailSubmit()}
+          />
+          {emailError && <div style={{ fontSize: 12, color: "#ef4444", marginTop: 8 }}>{emailError}</div>}
+          <button style={{ ...btnStyle }} onClick={handleEmailSubmit}>
+            Show My Results →
+          </button>
         </div>
       )}
 
-      {/* RESULTS — score + locked insight */}
+      {/* RESULTS */}
       {step === "results" && (
-        <div style={s.card}>
-          <div style={s.label}>Your Results</div>
+        <div style={{ ...cardStyle, maxWidth: 640 }}>
+          <div style={labelStyle}>Corbelle — Use Case Validator</div>
 
-          {dependencyRisk === "yes" && (
-            <div style={s.riskBanner}>
-              <span style={{ fontSize: 20 }}>🔴</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#fb923c", marginBottom: 4 }}>AI Dependency Risk Detected</div>
-                <div style={{ fontSize: 13, color: "#fed7aa", lineHeight: 1.5 }}>You've identified a critical single point of failure. This use case needs scenario planning before it becomes embedded in a business-critical process.</div>
-              </div>
-            </div>
-          )}
-
-          <div style={{ display: "flex", gap: 24, alignItems: "center", marginBottom: 28 }}>
-            <div style={s.scoreCircle}>
-              <div style={s.scoreInner}>
-                <div style={{ fontSize: 26, fontWeight: 700, color: verdict?.color, lineHeight: 1 }}>{score}</div>
+          {/* Score + Verdict */}
+          <div style={{ display: "flex", gap: 20, alignItems: "center", marginBottom: 28 }}>
+            <div style={{ width: 96, height: 96, borderRadius: "50%", background: `conic-gradient(${verdict?.color} ${score * 3.6}deg, #0f172a 0deg)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <div style={{ width: 74, height: 74, borderRadius: "50%", background: "#1e293b", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
+                <div style={{ fontSize: 24, fontWeight: 700, color: verdict?.color, lineHeight: 1 }}>{score}</div>
                 <div style={{ fontSize: 10, color: "#475569" }}>/ 100</div>
               </div>
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: verdict?.color, marginBottom: 4 }}>{verdict?.icon} {verdict?.label}</div>
-              <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.5 }}>{verdict?.message}</div>
+            <div>
+              <div style={{ fontSize: 19, fontWeight: 700, color: verdict?.color, marginBottom: 5 }}>{verdict?.icon} {verdict?.label}</div>
+              <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.6 }}>{verdict?.message}</div>
             </div>
           </div>
 
-          <div style={{ marginBottom: 24, display: "flex", justifyContent: "center" }}>
+          {/* Radar */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
             <RadarChart scores={scores} />
           </div>
 
+          {/* Dimension breakdown */}
           <div style={{ marginBottom: 28 }}>
-            {scoringDims.map(dim => (
-              <div key={dim} style={{ marginBottom: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}>
-                  <span style={{ color: "#94a3b8", fontWeight: 600 }}>{DIMENSIONS[dim].label}</span>
-                  <span style={{ color: "#6366f1", fontWeight: 700 }}>{scores[dim]}/5</span>
+            {SCORING_DIMS.map(dim => (
+              <div key={dim.key} style={{ marginBottom: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 5 }}>
+                  <span style={{ color: "#94a3b8", fontWeight: 600 }}>{dim.label}</span>
+                  <span style={{ color: "#6366f1", fontWeight: 700 }}>{scores[dim.key]}/5 — {dim.scale[scores[dim.key]-1]}</span>
                 </div>
-                <ScoreBar value={scores[dim]} />
-                <div style={{ fontSize: 12, color: "#475569", marginTop: 5 }}>{BLOCKERS[dim][scores[dim] - 1]}</div>
+                <ScoreBar value={scores[dim.key]} />
+                <div style={{ fontSize: 12, color: "#475569", marginTop: 5 }}>{dim.blocker[scores[dim.key]-1]}</div>
               </div>
             ))}
           </div>
 
-          {/* LOCKED INSIGHT */}
-          <div style={{ borderTop: "1px solid #334155", paddingTop: 24 }}>
-            <div style={s.lockedCard}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <span style={{ fontSize: 20 }}>🔒</span>
-                <div style={{ fontSize: 15, fontWeight: 700, color: "#f1f5f9" }}>Your AI-Generated Insight</div>
-              </div>
-              <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.6, marginBottom: 16 }}>
-                Based on your scores, Claude has identified your top risk, the single most important action to take, and a realistic timeframe — specific to your use case.
-              </p>
-              {/* Blurred preview */}
-              <div style={{ filter: "blur(4px)", pointerEvents: "none", marginBottom: 20, opacity: 0.4 }}>
-                <div style={{ ...s.blurRow, width: "90%" }} />
-                <div style={{ ...s.blurRow, width: "75%" }} />
-                <div style={{ ...s.blurRow, width: "85%", marginTop: 12 }} />
-                <div style={{ ...s.blurRow, width: "60%" }} />
-                <div style={{ ...s.blurRow, width: "80%", marginTop: 12 }} />
-                <div style={{ ...s.blurRow, width: "50%" }} />
-              </div>
-              <input
-                style={s.emailInput}
-                type="email"
-                placeholder="Enter your email to unlock"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleEmailSubmit()}
-              />
-              {emailError && <div style={{ fontSize: 12, color: "#ef4444", marginTop: 6 }}>{emailError}</div>}
-              <button style={{ ...s.btn, marginTop: 12 }} onClick={handleEmailSubmit}>
-                Unlock Full Insight →
-              </button>
-              <div style={{ fontSize: 11, color: "#334155", textAlign: "center", marginTop: 10 }}>
-                Your insight will also be sent to your inbox. No spam, ever.
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* INSIGHT UNLOCKED */}
-      {step === "insightUnlocked" && (
-        <div style={s.card}>
-          <div style={s.label}>ClearFoundation</div>
-
-          {dependencyRisk === "yes" && (
-            <div style={s.riskBanner}>
-              <span style={{ fontSize: 20 }}>🔴</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#fb923c", marginBottom: 4 }}>AI Dependency Risk Detected</div>
-                <div style={{ fontSize: 13, color: "#fed7aa", lineHeight: 1.5 }}>You've identified a critical single point of failure.</div>
-              </div>
-            </div>
-          )}
-
-          <div style={{ display: "flex", gap: 24, alignItems: "center", marginBottom: 28 }}>
-            <div style={s.scoreCircle}>
-              <div style={s.scoreInner}>
-                <div style={{ fontSize: 26, fontWeight: 700, color: verdict?.color, lineHeight: 1 }}>{score}</div>
-                <div style={{ fontSize: 10, color: "#475569" }}>/ 100</div>
-              </div>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: verdict?.color, marginBottom: 4 }}>{verdict?.icon} {verdict?.label}</div>
-              <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.5 }}>{verdict?.message}</div>
-            </div>
-          </div>
-
-          <div style={{ borderTop: "1px solid #334155", paddingTop: 20, marginBottom: 20 }}>
-            <div style={{ fontSize: 12, color: "#6366f1", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>AI-Generated Insight</div>
+          {/* AI Insight */}
+          <div style={{ borderTop: "1px solid #334155", paddingTop: 22, marginBottom: 22 }}>
+            <div style={{ fontSize: 11, color: "#6366f1", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 16 }}>AI-Generated Insight</div>
             {loadingInsights ? (
-              <div style={{ fontSize: 14, color: "#475569", textAlign: "center", padding: "28px 0" }}>
-                <div style={{ fontSize: 24, marginBottom: 10 }}>⚡</div>
+              <div style={{ textAlign: "center", padding: "28px 0", color: "#475569", fontSize: 14 }}>
+                <div style={{ fontSize: 22, marginBottom: 10 }}>⚡</div>
                 Analysing your use case...
               </div>
             ) : aiInsights ? (
               <>
-                <div style={s.insightCard}>
-                  <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Top Risk</div>
-                  <div style={{ fontSize: 14, color: "#e2e8f0", lineHeight: 1.6 }}>{aiInsights.topRisk}</div>
-                </div>
-                <div style={s.insightCard}>
-                  <div style={{ fontSize: 11, color: "#22c55e", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>First Action</div>
-                  <div style={{ fontSize: 14, color: "#e2e8f0", lineHeight: 1.6 }}>{aiInsights.firstAction}</div>
-                </div>
-                <div style={s.insightCard}>
-                  <div style={{ fontSize: 11, color: "#f59e0b", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Realistic Timeframe</div>
-                  <div style={{ fontSize: 14, color: "#e2e8f0", lineHeight: 1.6 }}>{aiInsights.timeframe}</div>
-                </div>
-                <div style={{ fontSize: 12, color: "#475569", textAlign: "center", marginTop: 8 }}>
-                  ✉️ A copy has been sent to {email}
-                </div>
+                {aiInsights.topRisk && (
+                  <div style={{ background: "#0f172a", borderRadius: 10, padding: "16px 18px", marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Top Risk</div>
+                    <div style={{ fontSize: 14, color: "#e2e8f0", lineHeight: 1.7 }}>{aiInsights.topRisk}</div>
+                  </div>
+                )}
+                {aiInsights.firstAction && (
+                  <div style={{ background: "#0f172a", borderRadius: 10, padding: "16px 18px", marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, color: "#22c55e", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>First Action</div>
+                    <div style={{ fontSize: 14, color: "#e2e8f0", lineHeight: 1.7 }}>{aiInsights.firstAction}</div>
+                  </div>
+                )}
+                {aiInsights.timeframe && (
+                  <div style={{ background: "#0f172a", borderRadius: 10, padding: "16px 18px", marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, color: "#f59e0b", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Realistic Timeframe</div>
+                    <div style={{ fontSize: 14, color: "#e2e8f0", lineHeight: 1.7 }}>{aiInsights.timeframe}</div>
+                  </div>
+                )}
+                <div style={{ fontSize: 12, color: "#334155", textAlign: "center", marginTop: 10 }}>✉️ A copy has been sent to {email}</div>
               </>
             ) : null}
           </div>
 
-          <div style={{ background: "#0f172a", borderRadius: 10, padding: "18px 20px", marginBottom: 20, borderLeft: "3px solid #6366f1" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 6 }}>Want to work through this with a thinking partner?</div>
-            <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>ClearFoundation helps mid-size executives make confident AI decisions — without the hype, the wasted licences, or the expensive reversals.</div>
+          {/* CTA */}
+          <div style={{ background: "#0f172a", borderRadius: 12, padding: "20px 22px", marginBottom: 16, borderLeft: "3px solid #6366f1" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#f1f5f9", marginBottom: 6 }}>Want to work through this with a thinking partner?</div>
+            <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.6, marginBottom: 14 }}>Corbelle helps mid-size executives make confident AI decisions — without the hype, the wasted licences, or the expensive reversals.</div>
+            <a href="https://cal.com/brennie/ai-30-mins" target="_blank" rel="noopener noreferrer"
+              style={{ display: "block", background: "#6366f1", color: "#fff", borderRadius: 10, padding: "13px 20px", fontSize: 14, fontWeight: 600, textAlign: "center", textDecoration: "none" }}>
+              Book a Free 30-Minute Call →
+            </a>
           </div>
 
-          <button style={s.btnSecondary} onClick={reset}>Validate Another Use Case</button>
+          <button style={btnSecStyle} onClick={reset}>Validate Another Use Case</button>
         </div>
       )}
     </div>
