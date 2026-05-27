@@ -75,37 +75,29 @@ function RadarChart({ scores }) {
   const labels = ["Process\nMaturity", "Data\nReadiness", "ROI\nRealism"];
   const cx = 160, cy = 160, r = 110;
   const levels = [0.2, 0.4, 0.6, 0.8, 1.0];
-
   function polarToCartesian(angle, radius) {
     const rad = (angle - 90) * (Math.PI / 180);
     return { x: cx + radius * Math.cos(rad), y: cy + radius * Math.sin(rad) };
   }
-
   const angles = dims.map((_, i) => (i / dims.length) * 360);
   const gridPolygons = levels.map(level => {
     const pts = angles.map(a => polarToCartesian(a, r * level));
     return pts.map(p => `${p.x},${p.y}`).join(" ");
   });
-
   const scorePts = dims.map((d, i) => {
     const val = (scores[d] || 0) / 5;
     return polarToCartesian(angles[i], r * val);
   });
   const scorePolygon = scorePts.map(p => `${p.x},${p.y}`).join(" ");
-
   return (
     <svg viewBox="0 0 320 320" style={{ width: "100%", maxWidth: 280 }}>
-      {gridPolygons.map((pts, i) => (
-        <polygon key={i} points={pts} fill="none" stroke="#334155" strokeWidth="1" />
-      ))}
+      {gridPolygons.map((pts, i) => <polygon key={i} points={pts} fill="none" stroke="#334155" strokeWidth="1" />)}
       {angles.map((angle, i) => {
         const pt = polarToCartesian(angle, r);
         return <line key={i} x1={cx} y1={cy} x2={pt.x} y2={pt.y} stroke="#334155" strokeWidth="1" />;
       })}
       <polygon points={scorePolygon} fill="rgba(99,102,241,0.25)" stroke="#6366f1" strokeWidth="2" />
-      {scorePts.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r="5" fill="#6366f1" />
-      ))}
+      {scorePts.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="5" fill="#6366f1" />)}
       {angles.map((angle, i) => {
         const pt = polarToCartesian(angle, r + 26);
         const lines = labels[i].split("\n");
@@ -121,11 +113,10 @@ function RadarChart({ scores }) {
   );
 }
 
-function ScoreBar({ value, max = 5, color = "#6366f1" }) {
-  const pct = (value / max) * 100;
+function ScoreBar({ value }) {
   return (
     <div style={{ background: "#1e293b", borderRadius: 4, height: 6, width: "100%", overflow: "hidden" }}>
-      <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 4, transition: "width 0.6s ease" }} />
+      <div style={{ width: `${(value / 5) * 100}%`, height: "100%", background: "#6366f1", borderRadius: 4, transition: "width 0.6s ease" }} />
     </div>
   );
 }
@@ -138,8 +129,10 @@ export default function App() {
   const [scoringIndex, setScoringIndex] = useState(0);
   const [failedGate, setFailedGate] = useState(null);
   const [dependencyRisk, setDependencyRisk] = useState(null);
+  const [email, setEmail] = useState("");
   const [aiInsights, setAiInsights] = useState(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
+  const [emailError, setEmailError] = useState("");
 
   const gates = ["problemClarity", "stakeholderValidation"];
   const scoringDims = ["processMaturity", "dataReadiness", "roiRealism"];
@@ -156,10 +149,11 @@ export default function App() {
     return VERDICT_BANDS.find(b => score >= b.min);
   }
 
-  async function fetchInsights(depRisk) {
+  async function fetchInsights(submittedEmail) {
     setLoadingInsights(true);
-    try {
-      const prompt = `You are an AI strategy advisor helping a mid-size business executive evaluate an AI use case.
+    const score = calcScore();
+    const verdict = getVerdict(score);
+    const prompt = `You are an AI strategy advisor helping a mid-size business executive evaluate an AI use case.
 
 Use case: "${useCase}"
 
@@ -167,9 +161,9 @@ Scores (1-5):
 - Process Maturity: ${scores.processMaturity}/5
 - Data Readiness: ${scores.dataReadiness}/5
 - ROI Realism: ${scores.roiRealism}/5
-- AI Dependency Risk: ${depRisk === "yes" ? "YES - process would fail if AI became unavailable" : "NO - process has fallback"}
+- AI Dependency Risk: ${dependencyRisk === "yes" ? "YES - process would fail if AI became unavailable" : "NO - process has fallback"}
 
-Foundation Score: ${calcScore()}/100
+Foundation Score: ${score}/100
 
 Respond ONLY with a JSON object, no markdown, no preamble:
 {
@@ -178,23 +172,22 @@ Respond ONLY with a JSON object, no markdown, no preamble:
   "timeframe": "Realistic timeframe to address the main gap (e.g. '4-6 weeks', '2-3 months')"
 }`;
 
+    try {
       const response = await fetch("/api/insight", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [{ role: "user", content: prompt }],
+          email: submittedEmail,
+          useCaseDescription: useCase,
+          foundationScore: score,
+          verdictLabel: verdict?.label,
         }),
       });
       const data = await response.json();
-      const text = data.content?.[0]?.text || "{}";
-      const clean = text.replace(/```json|```/g, "").trim();
-      setAiInsights(JSON.parse(clean));
+      setAiInsights(data);
     } catch (e) {
-      setAiInsights({
-        topRisk: "Unable to generate insight at this time.",
-        firstAction: "Review your dimension scores manually and address the lowest-scoring area first.",
-        timeframe: "Varies by gap severity",
-      });
+      setAiInsights({ topRisk: "Unable to generate insight.", firstAction: "Review your scores manually.", timeframe: "—" });
     }
     setLoadingInsights(false);
   }
@@ -224,18 +217,23 @@ Respond ONLY with a JSON object, no markdown, no preamble:
   function handleDependency(answer) {
     setDependencyRisk(answer);
     setStep("results");
-    fetchInsights(answer);
+  }
+
+  function handleEmailSubmit() {
+    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      setEmailError("Please enter a valid email address.");
+      return;
+    }
+    setEmailError("");
+    setStep("insightUnlocked");
+    fetchInsights(email);
   }
 
   function reset() {
-    setUseCase("");
-    setStep("intro");
+    setUseCase(""); setStep("intro");
     setScores({ problemClarity: 3, stakeholderValidation: 3, processMaturity: 3, dataReadiness: 3, roiRealism: 3 });
-    setGateIndex(0);
-    setScoringIndex(0);
-    setFailedGate(null);
-    setDependencyRisk(null);
-    setAiInsights(null);
+    setGateIndex(0); setScoringIndex(0); setFailedGate(null);
+    setDependencyRisk(null); setEmail(""); setAiInsights(null); setEmailError("");
   }
 
   const score = calcScore();
@@ -248,6 +246,7 @@ Respond ONLY with a JSON object, no markdown, no preamble:
     h1: { fontSize: 26, fontWeight: 700, color: "#f1f5f9", lineHeight: 1.25, marginBottom: 8 },
     body: { fontSize: 15, color: "#94a3b8", lineHeight: 1.6, marginBottom: 24 },
     input: { width: "100%", background: "#0f172a", border: "1.5px solid #334155", borderRadius: 10, padding: "14px 16px", color: "#e2e8f0", fontSize: 15, fontFamily: "'DM Sans', sans-serif", resize: "vertical", minHeight: 80, boxSizing: "border-box" },
+    emailInput: { width: "100%", background: "#0f172a", border: "1.5px solid #334155", borderRadius: 10, padding: "14px 16px", color: "#e2e8f0", fontSize: 15, fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box" },
     btn: { background: "#6366f1", color: "#fff", border: "none", borderRadius: 10, padding: "14px 28px", fontSize: 15, fontWeight: 600, cursor: "pointer", width: "100%", marginTop: 16, fontFamily: "'DM Sans', sans-serif" },
     btnSecondary: { background: "transparent", color: "#6366f1", border: "1.5px solid #6366f1", borderRadius: 10, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer", width: "100%", marginTop: 10, fontFamily: "'DM Sans', sans-serif" },
     sliderWrap: { marginTop: 20, marginBottom: 8 },
@@ -261,10 +260,13 @@ Respond ONLY with a JSON object, no markdown, no preamble:
     scoreCircle: { width: 100, height: 100, borderRadius: "50%", background: `conic-gradient(${verdict?.color} ${score * 3.6}deg, #0f172a 0deg)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
     scoreInner: { width: 78, height: 78, borderRadius: "50%", background: "#1e293b", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" },
     insightCard: { background: "#0f172a", borderRadius: 10, padding: "16px 18px", marginBottom: 12 },
+    lockedCard: { background: "#0f172a", borderRadius: 12, padding: "24px", border: "1.5px solid #334155", marginBottom: 20 },
+    blurRow: { height: 12, borderRadius: 4, background: "#1e293b", marginBottom: 8 },
   };
 
   return (
     <div style={s.wrap}>
+      {/* INTRO */}
       {step === "intro" && (
         <div style={s.card}>
           <div style={s.label}>ClearFoundation</div>
@@ -278,6 +280,7 @@ Respond ONLY with a JSON object, no markdown, no preamble:
         </div>
       )}
 
+      {/* GATES */}
       {step === "gates" && (
         <div style={s.card}>
           <div style={s.progress}>
@@ -290,14 +293,13 @@ Respond ONLY with a JSON object, no markdown, no preamble:
             <div style={s.sliderVal}>{scores[gates[gateIndex]]}<span style={{ fontSize: 16, color: "#475569" }}>/5</span></div>
             <div style={s.sliderLabel}>{LABELS[scores[gates[gateIndex]] - 1]}</div>
             <input type="range" min="1" max="5" value={scores[gates[gateIndex]]} onChange={e => setScores({ ...scores, [gates[gateIndex]]: Number(e.target.value) })} />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginTop: 4 }}>
-              <span>1 — No</span><span>5 — Yes</span>
-            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginTop: 4 }}><span>1 — No</span><span>5 — Yes</span></div>
           </div>
           <button style={s.btn} onClick={handleGateNext}>Continue →</button>
         </div>
       )}
 
+      {/* GATE BLOCK */}
       {step === "gateBlock" && failedGate && (
         <div style={s.card}>
           <div style={s.label}>Gate Check Failed</div>
@@ -306,11 +308,12 @@ Respond ONLY with a JSON object, no markdown, no preamble:
             <div style={{ fontSize: 13, color: "#fca5a5", fontWeight: 600, marginBottom: 6 }}>🚫 {DIMENSIONS[failedGate].label}</div>
             <p style={{ fontSize: 14, color: "#fca5a5", lineHeight: 1.6, margin: 0 }}>{DIMENSIONS[failedGate].gateFailMessage}</p>
           </div>
-          <p style={{ ...s.body, fontSize: 14 }}>No score is generated. The foundations aren't in place to evaluate this use case objectively. Addressing this gate is the only productive next step.</p>
+          <p style={{ ...s.body, fontSize: 14 }}>No score is generated. The foundations aren't in place to evaluate this use case objectively.</p>
           <button style={s.btn} onClick={reset}>Start Again</button>
         </div>
       )}
 
+      {/* SCORING */}
       {step === "scoring" && (
         <div style={s.card}>
           <div style={s.progress}>
@@ -323,16 +326,13 @@ Respond ONLY with a JSON object, no markdown, no preamble:
             <div style={s.sliderVal}>{scores[scoringDims[scoringIndex]]}<span style={{ fontSize: 16, color: "#475569" }}>/5</span></div>
             <div style={s.sliderLabel}>{LABELS[scores[scoringDims[scoringIndex]] - 1]}</div>
             <input type="range" min="1" max="5" value={scores[scoringDims[scoringIndex]]} onChange={e => setScores({ ...scores, [scoringDims[scoringIndex]]: Number(e.target.value) })} />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginTop: 4 }}>
-              <span>1 — No</span><span>5 — Yes</span>
-            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", marginTop: 4 }}><span>1 — No</span><span>5 — Yes</span></div>
           </div>
-          <button style={s.btn} onClick={handleScoringNext}>
-            {scoringIndex < scoringDims.length - 1 ? "Next →" : "Final Check →"}
-          </button>
+          <button style={s.btn} onClick={handleScoringNext}>{scoringIndex < scoringDims.length - 1 ? "Next →" : "Final Check →"}</button>
         </div>
       )}
 
+      {/* DEPENDENCY */}
       {step === "dependency" && (
         <div style={s.card}>
           <div style={s.label}>Dependency Risk Check</div>
@@ -343,6 +343,7 @@ Respond ONLY with a JSON object, no markdown, no preamble:
         </div>
       )}
 
+      {/* RESULTS — score + locked insight */}
       {step === "results" && (
         <div style={s.card}>
           <div style={s.label}>Your Results</div>
@@ -374,7 +375,7 @@ Respond ONLY with a JSON object, no markdown, no preamble:
             <RadarChart scores={scores} />
           </div>
 
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 28 }}>
             {scoringDims.map(dim => (
               <div key={dim} style={{ marginBottom: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}>
@@ -387,14 +388,84 @@ Respond ONLY with a JSON object, no markdown, no preamble:
             ))}
           </div>
 
+          {/* LOCKED INSIGHT */}
+          <div style={{ borderTop: "1px solid #334155", paddingTop: 24 }}>
+            <div style={s.lockedCard}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <span style={{ fontSize: 20 }}>🔒</span>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#f1f5f9" }}>Your AI-Generated Insight</div>
+              </div>
+              <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.6, marginBottom: 16 }}>
+                Based on your scores, Claude has identified your top risk, the single most important action to take, and a realistic timeframe — specific to your use case.
+              </p>
+              {/* Blurred preview */}
+              <div style={{ filter: "blur(4px)", pointerEvents: "none", marginBottom: 20, opacity: 0.4 }}>
+                <div style={{ ...s.blurRow, width: "90%" }} />
+                <div style={{ ...s.blurRow, width: "75%" }} />
+                <div style={{ ...s.blurRow, width: "85%", marginTop: 12 }} />
+                <div style={{ ...s.blurRow, width: "60%" }} />
+                <div style={{ ...s.blurRow, width: "80%", marginTop: 12 }} />
+                <div style={{ ...s.blurRow, width: "50%" }} />
+              </div>
+              <input
+                style={s.emailInput}
+                type="email"
+                placeholder="Enter your email to unlock"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleEmailSubmit()}
+              />
+              {emailError && <div style={{ fontSize: 12, color: "#ef4444", marginTop: 6 }}>{emailError}</div>}
+              <button style={{ ...s.btn, marginTop: 12 }} onClick={handleEmailSubmit}>
+                Unlock Full Insight →
+              </button>
+              <div style={{ fontSize: 11, color: "#334155", textAlign: "center", marginTop: 10 }}>
+                Your insight will also be sent to your inbox. No spam, ever.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* INSIGHT UNLOCKED */}
+      {step === "insightUnlocked" && (
+        <div style={s.card}>
+          <div style={s.label}>ClearFoundation</div>
+
+          {dependencyRisk === "yes" && (
+            <div style={s.riskBanner}>
+              <span style={{ fontSize: 20 }}>🔴</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#fb923c", marginBottom: 4 }}>AI Dependency Risk Detected</div>
+                <div style={{ fontSize: 13, color: "#fed7aa", lineHeight: 1.5 }}>You've identified a critical single point of failure.</div>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 24, alignItems: "center", marginBottom: 28 }}>
+            <div style={s.scoreCircle}>
+              <div style={s.scoreInner}>
+                <div style={{ fontSize: 26, fontWeight: 700, color: verdict?.color, lineHeight: 1 }}>{score}</div>
+                <div style={{ fontSize: 10, color: "#475569" }}>/ 100</div>
+              </div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: verdict?.color, marginBottom: 4 }}>{verdict?.icon} {verdict?.label}</div>
+              <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.5 }}>{verdict?.message}</div>
+            </div>
+          </div>
+
           <div style={{ borderTop: "1px solid #334155", paddingTop: 20, marginBottom: 20 }}>
             <div style={{ fontSize: 12, color: "#6366f1", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>AI-Generated Insight</div>
             {loadingInsights ? (
-              <div style={{ fontSize: 14, color: "#475569", textAlign: "center", padding: "20px 0" }}>Analysing your use case...</div>
+              <div style={{ fontSize: 14, color: "#475569", textAlign: "center", padding: "28px 0" }}>
+                <div style={{ fontSize: 24, marginBottom: 10 }}>⚡</div>
+                Analysing your use case...
+              </div>
             ) : aiInsights ? (
               <>
                 <div style={s.insightCard}>
-                  <div style={{ fontSize: 11, color: "#6366f1", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Top Risk</div>
+                  <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Top Risk</div>
                   <div style={{ fontSize: 14, color: "#e2e8f0", lineHeight: 1.6 }}>{aiInsights.topRisk}</div>
                 </div>
                 <div style={s.insightCard}>
@@ -404,6 +475,9 @@ Respond ONLY with a JSON object, no markdown, no preamble:
                 <div style={s.insightCard}>
                   <div style={{ fontSize: 11, color: "#f59e0b", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Realistic Timeframe</div>
                   <div style={{ fontSize: 14, color: "#e2e8f0", lineHeight: 1.6 }}>{aiInsights.timeframe}</div>
+                </div>
+                <div style={{ fontSize: 12, color: "#475569", textAlign: "center", marginTop: 8 }}>
+                  ✉️ A copy has been sent to {email}
                 </div>
               </>
             ) : null}
