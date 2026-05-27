@@ -2,21 +2,25 @@ import { useState } from "react";
 
 // ─── COLOUR TOKENS ───────────────────────────────────────────────
 const C = {
-  accent:      "#0d9488",
-  accentLight: "#99f6e4",
-  accentDim:   "#0f766e",
-  bg:          "#0f172a",
-  card:        "#1e293b",
-  border:      "#334155",
-  textPrimary: "#f1f5f9",
-  textSecond:  "#94a3b8",
-  textMuted:   "#dbdbdb",
-  textFaint:   "#64748b",
+  accent:      "#1a56db",
+  accentLight: "#eff6ff",
+  accentText:  "#1e40af",
+  accentDim:   "#93c5fd",
+  bg:          "#f0f4f8",
+  card:        "#ffffff",
+  border:      "#e2e8f0",
+  inputBg:     "#f8fafc",
+  textPrimary: "#1a1a2e",
+  textSecond:  "#4a5568",
+  textMuted:   "#6b7280",
   red:         "#ef4444",
-  redBg:       "#1a0505",
-  redLight:    "#fca5a5",
-  green:       "#22c55e",
-  amber:       "#f59e0b",
+  redBg:       "#fef2f2",
+  redBorder:   "#fecaca",
+  redText:     "#b91c1c",
+  redLight:    "#7f1d1d",
+  green:       "#16a34a",
+  amber:       "#d97706",
+  orange:      "#ea580c",
 };
 
 const GATES = [
@@ -176,10 +180,10 @@ const RADAR_DIMS   = ["processQuality","dataReadiness","successDefinition","exec
 const RADAR_LABELS = ["Process\nQuality","Data\nReadiness","Success\nDefinition","Exec\nSponsorship","Governance"];
 
 const VERDICT_BANDS = [
-  { min: 80, label: "Strong Foundation",           color: C.green,  icon: "✅", message: "Your use case has solid foundations. The logical next step is a process blueprint before selecting any technology." },
-  { min: 60, label: "Proceed with Conditions",     color: C.amber,  icon: "⚠️", message: "There's a viable use case here, but specific gaps need groundwork before committing to a technology decision." },
-  { min: 40, label: "Significant Groundwork Needed", color: "#f97316", icon: "🔶", message: "This isn't a no — but it isn't ready. Acting now risks investing in the wrong solution to a poorly defined problem." },
-  { min: 0,  label: "Not Ready",                   color: C.red,    icon: "🛑", message: "The foundations aren't in place yet. Proceeding without addressing these gaps typically leads to expensive reversals." },
+  { min: 80, label: "Strong Foundation",            color: "#16a34a", icon: "✅", message: "Your use case has solid foundations. The logical next step is a process blueprint before selecting any technology." },
+  { min: 60, label: "Proceed with Conditions",      color: "#d97706", icon: "⚠️", message: "There's a viable use case here, but specific gaps need groundwork before committing to a technology decision." },
+  { min: 40, label: "Significant Groundwork Needed",color: "#ea580c", icon: "🔶", message: "This isn't a no — but it isn't ready. Acting now risks investing in the wrong solution to a poorly defined problem." },
+  { min: 0,  label: "Not Ready",                    color: "#ef4444", icon: "🛑", message: "The foundations aren't in place yet. Proceeding without addressing these gaps typically leads to expensive reversals." },
 ];
 
 // ─── COMPONENTS ──────────────────────────────────────────────────
@@ -199,13 +203,13 @@ function RadarChart({ scores }) {
     <svg viewBox="0 0 320 320" style={{ width: "100%", maxWidth: 300 }}>
       {gridPts.map((pts, i) => <polygon key={i} points={pts} fill="none" stroke={C.border} strokeWidth="1" />)}
       {angles.map((angle, i) => { const pt = polar(angle, r); return <line key={i} x1={cx} y1={cy} x2={pt.x} y2={pt.y} stroke={C.border} strokeWidth="1" />; })}
-      <polygon points={scorePolygon} fill="rgba(13,148,136,0.2)" stroke={C.accent} strokeWidth="2" />
+      <polygon points={scorePolygon} fill="rgba(26,86,219,0.12)" stroke={C.accent} strokeWidth="2" />
       {scorePts.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="5" fill={C.accent} />)}
       {angles.map((angle, i) => {
         const pt = polar(angle, r + 28);
         const lines = RADAR_LABELS[i].split("\n");
         return (
-          <text key={i} x={pt.x} y={pt.y} textAnchor="middle" fill={C.textSecond} fontSize="10.5" fontFamily="'DM Sans', sans-serif">
+          <text key={i} x={pt.x} y={pt.y} textAnchor="middle" fill={C.textMuted} fontSize="10.5" fontFamily="'DM Sans', sans-serif">
             {lines.map((line, j) => <tspan key={j} x={pt.x} dy={j === 0 ? (lines.length > 1 ? "-0.5em" : "0") : "1.2em"}>{line}</tspan>)}
           </text>
         );
@@ -216,7 +220,7 @@ function RadarChart({ scores }) {
 
 function ScoreBar({ value }) {
   return (
-    <div style={{ background: C.bg, borderRadius: 4, height: 6, width: "100%", overflow: "hidden" }}>
+    <div style={{ background: C.border, borderRadius: 4, height: 6, width: "100%", overflow: "hidden" }}>
       <div style={{ width: `${(value / 5) * 100}%`, height: "100%", background: C.accent, borderRadius: 4, transition: "width 0.6s ease" }} />
     </div>
   );
@@ -226,7 +230,7 @@ function ProgressBar({ current, total }) {
   return (
     <div style={{ display: "flex", gap: 5, marginBottom: 24 }}>
       {Array.from({ length: total }).map((_, i) => (
-        <div key={i} style={{ height: 4, flex: 1, borderRadius: 4, background: i < current ? C.accent : i === current ? C.accentLight : C.card, border: i >= current ? `1px solid ${C.border}` : "none" }} />
+        <div key={i} style={{ height: 4, flex: 1, borderRadius: 4, background: i < current ? C.accent : i === current ? C.accentDim : C.border }} />
       ))}
     </div>
   );
@@ -242,13 +246,13 @@ function BackButton({ onClick }) {
 
 // ─── SHARED STYLES ───────────────────────────────────────────────
 const wrapStyle     = { minHeight: "100vh", background: C.bg, color: C.textPrimary, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px" };
-const cardStyle     = { background: C.card, borderRadius: 16, padding: "36px 32px", maxWidth: 600, width: "100%", boxShadow: "0 25px 60px rgba(0,0,0,0.5)" };
+const cardStyle     = { background: C.card, borderRadius: 16, padding: "36px 32px", maxWidth: 600, width: "100%", boxShadow: "0 4px 24px rgba(0,0,0,0.08)", border: `1px solid ${C.border}` };
 const labelStyle    = { fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: C.accent, fontWeight: 700, marginBottom: 10 };
 const questionStyle = { fontSize: 20, fontWeight: 700, color: C.textPrimary, lineHeight: 1.35, marginBottom: 0 };
-const tipStyle      = { fontSize: 13, color: C.accentLight, lineHeight: 1.6, marginTop: 14, padding: "10px 14px", background: C.bg, borderRadius: 8, borderLeft: `3px solid ${C.accentDim}` };
-const btnStyle      = { background: C.accent, color: "#fff", border: "none", borderRadius: 10, padding: "14px 28px", fontSize: 15, fontWeight: 600, cursor: "pointer", width: "100%", marginTop: 20, fontFamily: "'DM Sans', sans-serif" };
-const btnSecStyle   = { background: "transparent", color: C.accent, border: `1.5px solid ${C.accent}`, borderRadius: 10, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer", width: "100%", marginTop: 10, fontFamily: "'DM Sans', sans-serif" };
-const inputStyle    = { width: "100%", background: C.bg, border: `1.5px solid ${C.border}`, borderRadius: 10, padding: "14px 16px", color: C.textPrimary, fontSize: 15, fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box" };
+const tipStyle      = { fontSize: 13, color: C.accentText, lineHeight: 1.6, marginTop: 14, padding: "10px 14px", background: C.accentLight, borderRadius: 8, borderLeft: `3px solid ${C.accent}` };
+const btnStyle      = { background: C.accent, color: "#fff", border: "none", borderRadius: 50, padding: "14px 28px", fontSize: 15, fontWeight: 600, cursor: "pointer", width: "100%", marginTop: 20, fontFamily: "'DM Sans', sans-serif" };
+const btnSecStyle   = { background: "transparent", color: C.accent, border: `1.5px solid ${C.accent}`, borderRadius: 50, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer", width: "100%", marginTop: 10, fontFamily: "'DM Sans', sans-serif" };
+const inputStyle    = { width: "100%", background: C.inputBg, border: `1.5px solid ${C.border}`, borderRadius: 10, padding: "14px 16px", color: C.textPrimary, fontSize: 15, fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box" };
 
 // ─── APP ─────────────────────────────────────────────────────────
 export default function App() {
@@ -261,16 +265,16 @@ export default function App() {
     return s;
   };
 
-  const [step, setStep]               = useState("intro");
-  const [useCase, setUseCase]         = useState("");
-  const [scores, setScores]           = useState(initScores());
-  const [gateIndex, setGateIndex]     = useState(0);
-  const [scoringIndex, setScoringIndex] = useState(0);
-  const [failedGate, setFailedGate]   = useState(null);
-  const [email, setEmail]             = useState("");
-  const [emailError, setEmailError]   = useState("");
-  const [aiInsights, setAiInsights]   = useState(null);
-  const [loadingInsights, setLoadingInsights] = useState(false);
+  const [step, setStep]                         = useState("intro");
+  const [useCase, setUseCase]                   = useState("");
+  const [scores, setScores]                     = useState(initScores());
+  const [gateIndex, setGateIndex]               = useState(0);
+  const [scoringIndex, setScoringIndex]         = useState(0);
+  const [failedGate, setFailedGate]             = useState(null);
+  const [email, setEmail]                       = useState("");
+  const [emailError, setEmailError]             = useState("");
+  const [aiInsights, setAiInsights]             = useState(null);
+  const [loadingInsights, setLoadingInsights]   = useState(false);
 
   function setScore(key, val) { setScores(s => ({ ...s, [key]: val })); }
 
@@ -328,13 +332,13 @@ Respond ONLY with a JSON object, no markdown, no preamble:
       }
       const data = await response.json();
       if (data.error) {
-        setAiInsights({ topRisk: "Unable to generate insight at this time.", firstAction: "Review your dimension scores and address the lowest-scoring area first.", timeframe: "Varies by gap severity." });
+        setAiInsights({ topRisk: "Unable to generate insight.", firstAction: "Review your dimension scores and address the lowest-scoring area first.", timeframe: "Varies by gap severity." });
       } else {
         setAiInsights(data);
       }
     } catch (e) {
       console.error("Fetch error:", e);
-      setAiInsights({ topRisk: "Unable to generate insight at this time.", firstAction: "Review your dimension scores and address the lowest-scoring area first.", timeframe: "Varies by gap severity." });
+      setAiInsights({ topRisk: "Unable to generate insight.", firstAction: "Review your dimension scores and address the lowest-scoring area first.", timeframe: "Varies by gap severity." });
     }
     setLoadingInsights(false);
   }
@@ -370,8 +374,8 @@ Respond ONLY with a JSON object, no markdown, no preamble:
     setEmail(""); setEmailError(""); setAiInsights(null);
   }
 
-  const score   = calcScore();
-  const verdict = getVerdict(score);
+  const score       = calcScore();
+  const verdict     = getVerdict(score);
   const currentGate = GATES[gateIndex];
   const currentDim  = SCORING_DIMS[scoringIndex];
 
@@ -409,9 +413,9 @@ Respond ONLY with a JSON object, no markdown, no preamble:
           <div style={tipStyle}>{currentGate.tip}</div>
           <div style={{ marginTop: 24, marginBottom: 8 }}>
             <div style={{ fontSize: 32, fontWeight: 700, color: C.accent, textAlign: "center", marginBottom: 4 }}>
-              {scores[currentGate.key]}<span style={{ fontSize: 16, color: C.textFaint }}>/5</span>
+              {scores[currentGate.key]}<span style={{ fontSize: 16, color: C.textMuted }}>/5</span>
             </div>
-            <div style={{ fontSize: 13, color: C.textMuted, textAlign: "center", marginBottom: 16, fontWeight: 600 }}>
+            <div style={{ fontSize: 13, color: C.accent, textAlign: "center", marginBottom: 16, fontWeight: 600 }}>
               {currentGate.scale[scores[currentGate.key] - 1]}
             </div>
             <input type="range" min="1" max="5" value={scores[currentGate.key]}
@@ -430,9 +434,9 @@ Respond ONLY with a JSON object, no markdown, no preamble:
         <div style={cardStyle}>
           <div style={{ ...labelStyle, color: C.red }}>Assessment Stopped</div>
           <h2 style={{ fontSize: 22, fontWeight: 700, color: C.red, lineHeight: 1.3, marginBottom: 16 }}>{failedGate.stopTitle}</h2>
-          <div style={{ background: C.redBg, border: `1.5px solid ${C.red}`, borderRadius: 12, padding: "20px 22px", marginBottom: 20 }}>
+          <div style={{ background: C.redBg, border: `1.5px solid ${C.redBorder}`, borderRadius: 12, padding: "20px 22px", marginBottom: 20 }}>
             <div style={{ fontSize: 11, color: C.red, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>🚫 {failedGate.label}</div>
-            <p style={{ fontSize: 14, color: C.redLight, lineHeight: 1.75, margin: 0 }}>{failedGate.failMessage}</p>
+            <p style={{ fontSize: 14, color: C.redText, lineHeight: 1.75, margin: 0 }}>{failedGate.failMessage}</p>
           </div>
           <p style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.6, marginBottom: 0 }}>No score has been generated. Come back when this foundation is in place.</p>
           <button style={btnStyle} onClick={reset}>Start Again</button>
@@ -448,9 +452,9 @@ Respond ONLY with a JSON object, no markdown, no preamble:
           <div style={tipStyle}>{currentDim.tip}</div>
           <div style={{ marginTop: 24, marginBottom: 8 }}>
             <div style={{ fontSize: 32, fontWeight: 700, color: C.accent, textAlign: "center", marginBottom: 4 }}>
-              {scores[currentDim.key]}<span style={{ fontSize: 16, color: C.textFaint }}>/5</span>
+              {scores[currentDim.key]}<span style={{ fontSize: 16, color: C.textMuted }}>/5</span>
             </div>
-            <div style={{ fontSize: 13, color: C.textMuted, textAlign: "center", marginBottom: 16, fontWeight: 600 }}>
+            <div style={{ fontSize: 13, color: C.accent, textAlign: "center", marginBottom: 16, fontWeight: 600 }}>
               {currentDim.scale[scores[currentDim.key] - 1]}
             </div>
             <input type="range" min="1" max="5" value={scores[currentDim.key]}
@@ -491,10 +495,10 @@ Respond ONLY with a JSON object, no markdown, no preamble:
 
           {/* Score */}
           <div style={{ display: "flex", gap: 20, alignItems: "center", marginBottom: 28 }}>
-            <div style={{ width: 96, height: 96, borderRadius: "50%", background: `conic-gradient(${verdict?.color} ${score * 3.6}deg, ${C.bg} 0deg)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <div style={{ width: 96, height: 96, borderRadius: "50%", background: `conic-gradient(${verdict?.color} ${score * 3.6}deg, ${C.border} 0deg)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <div style={{ width: 74, height: 74, borderRadius: "50%", background: C.card, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
                 <div style={{ fontSize: 24, fontWeight: 700, color: verdict?.color, lineHeight: 1 }}>{score}</div>
-                <div style={{ fontSize: 10, color: C.textFaint }}>/ 100</div>
+                <div style={{ fontSize: 10, color: C.textMuted }}>/ 100</div>
               </div>
             </div>
             <div>
@@ -533,34 +537,34 @@ Respond ONLY with a JSON object, no markdown, no preamble:
             ) : aiInsights ? (
               <>
                 {aiInsights.topRisk && (
-                  <div style={{ background: C.bg, borderRadius: 10, padding: "16px 18px", marginBottom: 10 }}>
+                  <div style={{ background: C.bg, borderRadius: 10, padding: "16px 18px", marginBottom: 10, border: `1px solid ${C.border}` }}>
                     <div style={{ fontSize: 11, color: C.red, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Top Risk</div>
-                    <div style={{ fontSize: 14, color: C.textMuted, lineHeight: 1.7 }}>{aiInsights.topRisk}</div>
+                    <div style={{ fontSize: 14, color: C.textSecond, lineHeight: 1.7 }}>{aiInsights.topRisk}</div>
                   </div>
                 )}
                 {aiInsights.firstAction && (
-                  <div style={{ background: C.bg, borderRadius: 10, padding: "16px 18px", marginBottom: 10 }}>
+                  <div style={{ background: C.bg, borderRadius: 10, padding: "16px 18px", marginBottom: 10, border: `1px solid ${C.border}` }}>
                     <div style={{ fontSize: 11, color: C.green, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>First Action</div>
-                    <div style={{ fontSize: 14, color: C.textMuted, lineHeight: 1.7 }}>{aiInsights.firstAction}</div>
+                    <div style={{ fontSize: 14, color: C.textSecond, lineHeight: 1.7 }}>{aiInsights.firstAction}</div>
                   </div>
                 )}
                 {aiInsights.timeframe && (
-                  <div style={{ background: C.bg, borderRadius: 10, padding: "16px 18px", marginBottom: 10 }}>
+                  <div style={{ background: C.bg, borderRadius: 10, padding: "16px 18px", marginBottom: 10, border: `1px solid ${C.border}` }}>
                     <div style={{ fontSize: 11, color: C.amber, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Realistic Timeframe</div>
-                    <div style={{ fontSize: 14, color: C.textMuted, lineHeight: 1.7 }}>{aiInsights.timeframe}</div>
+                    <div style={{ fontSize: 14, color: C.textSecond, lineHeight: 1.7 }}>{aiInsights.timeframe}</div>
                   </div>
                 )}
-                <div style={{ fontSize: 12, color: C.accentLight, textAlign: "center", marginTop: 10 }}>✉️ A copy has been sent to {email}</div>
+                <div style={{ fontSize: 12, color: C.accent, textAlign: "center", marginTop: 10 }}>✉️ A copy has been sent to {email}</div>
               </>
             ) : null}
           </div>
 
           {/* CTA */}
-          <div style={{ background: C.bg, borderRadius: 12, padding: "20px 22px", marginBottom: 16, borderLeft: `3px solid ${C.accent}` }}>
+          <div style={{ background: C.accentLight, borderRadius: 12, padding: "20px 22px", marginBottom: 16, borderLeft: `3px solid ${C.accent}` }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, marginBottom: 6 }}>Want to work through this with a thinking partner?</div>
-            <div style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.6, marginBottom: 14 }}>Corbelle helps mid-size executives make confident AI decisions — without the hype, the wasted licences, or the expensive reversals.</div>
+            <div style={{ fontSize: 13, color: C.textSecond, lineHeight: 1.6, marginBottom: 14 }}>Corbelle helps mid-size executives make confident AI decisions — without the hype, the wasted licences, or the expensive reversals.</div>
             <a href="https://cal.com/brennie/ai-30-mins" target="_blank" rel="noopener noreferrer"
-              style={{ display: "block", background: C.accent, color: "#fff", borderRadius: 10, padding: "13px 20px", fontSize: 14, fontWeight: 600, textAlign: "center", textDecoration: "none" }}>
+              style={{ display: "block", background: C.accent, color: "#fff", borderRadius: 50, padding: "13px 20px", fontSize: 14, fontWeight: 600, textAlign: "center", textDecoration: "none" }}>
               Book a Free 30-Minute Call →
             </a>
           </div>
