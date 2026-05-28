@@ -42,25 +42,42 @@ export default async function handler(req, res) {
       insight = { topRisk: text, firstAction: '', timeframe: '' }
     }
 
-    // Upsert contact in Loops
+    // Save contact to Loops
     if (email && process.env.LOOPS_API_KEY) {
       try {
-        const upsertRes = await fetch('https://app.loops.so/api/v1/contacts/upsert', {
+        const contactPayload = {
+          email,
+          useCaseDescription,
+          foundationScore,
+          verdictLabel,
+          source: 'use-case-validator',
+        }
+
+        // Try create first
+        const createRes = await fetch('https://app.loops.so/api/v1/contacts/create', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${process.env.LOOPS_API_KEY}`,
           },
-          body: JSON.stringify({
-            email,
-            useCaseDescription,
-            foundationScore,
-            verdictLabel,
-            source: 'use-case-validator',
-          }),
+          body: JSON.stringify(contactPayload),
         })
-        const upsertData = await upsertRes.json()
-        console.log('Loops upsert:', JSON.stringify(upsertData))
+        const createData = await createRes.json()
+        console.log('Loops create:', JSON.stringify(createData))
+
+        // If contact already exists (409), update instead
+        if (createRes.status === 409) {
+          const updateRes = await fetch('https://app.loops.so/api/v1/contacts/update', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.LOOPS_API_KEY}`,
+            },
+            body: JSON.stringify(contactPayload),
+          })
+          const updateData = await updateRes.json()
+          console.log('Loops update:', JSON.stringify(updateData))
+        }
 
         // Send transactional email
         const txRes = await fetch('https://app.loops.so/api/v1/transactional', {
@@ -84,6 +101,7 @@ export default async function handler(req, res) {
         })
         const txData = await txRes.json()
         console.log('Loops transactional:', JSON.stringify(txData))
+
       } catch (loopsErr) {
         console.error('Loops error:', loopsErr)
       }
