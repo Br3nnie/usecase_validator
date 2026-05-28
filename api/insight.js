@@ -1,15 +1,14 @@
 export const config = {
-  runtime: 'edge',
+  maxDuration: 30,
 }
 
-export default async function handler(req) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 })
+    return res.status(405).json({ error: 'Method not allowed' })
   }
 
   try {
-    const body = await req.json()
-    const { messages, email, useCaseDescription, foundationScore, verdictLabel } = body
+    const { messages, email, useCaseDescription, foundationScore, verdictLabel } = req.body
 
     // Call Anthropic
     const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
@@ -28,7 +27,8 @@ export default async function handler(req) {
 
     if (!anthropicResponse.ok) {
       const err = await anthropicResponse.text()
-      return new Response(JSON.stringify({ error: 'Anthropic error', detail: err }), { status: 500 })
+      console.error('Anthropic error:', err)
+      return res.status(500).json({ error: 'Anthropic error', detail: err })
     }
 
     const data = await anthropicResponse.json()
@@ -45,7 +45,7 @@ export default async function handler(req) {
     // Upsert contact in Loops
     if (email && process.env.LOOPS_API_KEY) {
       try {
-        await fetch('https://app.loops.so/api/v1/contacts/upsert', {
+        const upsertRes = await fetch('https://app.loops.so/api/v1/contacts/upsert', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -59,9 +59,11 @@ export default async function handler(req) {
             source: 'use-case-validator',
           }),
         })
+        const upsertData = await upsertRes.json()
+        console.log('Loops upsert:', JSON.stringify(upsertData))
 
         // Send transactional email
-        await fetch('https://app.loops.so/api/v1/transactional', {
+        const txRes = await fetch('https://app.loops.so/api/v1/transactional', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -80,23 +82,17 @@ export default async function handler(req) {
             },
           }),
         })
+        const txData = await txRes.json()
+        console.log('Loops transactional:', JSON.stringify(txData))
       } catch (loopsErr) {
-        // Don't fail the whole request if Loops errors
         console.error('Loops error:', loopsErr)
       }
     }
 
-    return new Response(JSON.stringify(insight), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-    })
+    return res.status(200).json(insight)
+
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    console.error('Handler error:', err.message)
+    return res.status(500).json({ error: err.message })
   }
 }
