@@ -11,6 +11,25 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.print-only {
+  display: none;
+}
+
+.result-actions {
+  display: grid;
+  gap: 0;
+}
+
+.website-link {
+  color: #1a56db;
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  padding-top: 16px;
+  text-align: center;
+  text-decoration: none;
+}
+
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
@@ -46,4 +65,115 @@ input[type="range"]::-moz-range-thumb {
 textarea:focus, input:focus {
   outline: none;
   border-color: #1a56db !important;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
+@media print {
+  html,
+  body,
+  #root {
+    background: #fff !important;
+    color: #1a1a2e !important;
+    height: auto !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    width: 100% !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .app-shell,
+  .app-shell--results {
+    align-items: flex-start !important;
+    background: #fff !important;
+    display: block !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+  }
+
+  .results-card {
+    background: #fff !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    max-width: none !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .screen-only,
+  .results-cta {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block;
+  }
+
+  .print-meta {
+    color: #6b7280;
+    font-size: 9pt;
+    margin-bottom: 4mm;
+    text-transform: uppercase;
+  }
+
+  .print-title {
+    font-size: 16pt;
+    line-height: 1.3;
+    margin: 0 0 8mm;
+  }
+
+  .section-title {
+    color: #1a1a2e;
+    font-size: 16pt;
+    margin: 0 0 8mm;
+  }
+
+  .print-page {
+    background: #fff;
+    break-after: page;
+    min-height: 273mm;
+    overflow: hidden;
+    page-break-after: always;
+    position: relative;
+  }
+
+  .print-page--summary {
+    padding-top: 3mm;
+  }
+
+  .print-page--dimensions {
+    margin: 0 !important;
+    padding-top: 3mm;
+  }
+
+  .print-page--insight {
+    border-top: 0 !important;
+    break-after: auto;
+    margin: 0 !important;
+    min-height: auto;
+    page-break-after: auto;
+    padding-top: 3mm !important;
+  }
+
+  .dimension-row {
+    break-inside: avoid;
+    margin-bottom: 6mm !important;
+    page-break-inside: avoid;
+  }
+
+  svg {
+    max-height: 120mm;
+  }
 }
