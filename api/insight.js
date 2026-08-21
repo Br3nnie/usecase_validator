@@ -42,33 +42,41 @@ export default async function handler(req, res) {
       insight = { topRisk: text, firstAction: '', timeframe: '' }
     }
 
-    // Save contact to Loops. The update endpoint is an upsert, so it handles
-    // both first-time submissions and returning contacts in one request.
+    // Save contact to Loops
     if (email && process.env.LOOPS_API_KEY) {
       try {
-        const mailingListId = process.env.LOOPS_MAILING_LIST_ID?.trim()
         const contactPayload = {
           email,
           useCaseDescription,
           foundationScore,
           verdictLabel,
           source: 'use-case-validator',
-          ...(mailingListId ? { mailingLists: { [mailingListId]: true } } : {}),
         }
 
-        const contactRes = await fetch('https://app.loops.so/api/v1/contacts/update', {
-          method: 'PUT',
+        // Try create first
+        const createRes = await fetch('https://app.loops.so/api/v1/contacts/create', {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${process.env.LOOPS_API_KEY}`,
           },
           body: JSON.stringify(contactPayload),
         })
-        const contactData = await contactRes.json()
-        if (!contactRes.ok) {
-          console.error('Loops contact error:', contactRes.status, JSON.stringify(contactData))
-        } else {
-          console.log('Loops contact upserted:', contactData.id)
+        const createData = await createRes.json()
+        console.log('Loops create:', JSON.stringify(createData))
+
+        // If contact already exists (409), update instead
+        if (createRes.status === 409) {
+          const updateRes = await fetch('https://app.loops.so/api/v1/contacts/update', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.LOOPS_API_KEY}`,
+            },
+            body: JSON.stringify(contactPayload),
+          })
+          const updateData = await updateRes.json()
+          console.log('Loops update:', JSON.stringify(updateData))
         }
 
         // Send transactional email
@@ -92,11 +100,7 @@ export default async function handler(req, res) {
           }),
         })
         const txData = await txRes.json()
-        if (!txRes.ok) {
-          console.error('Loops transactional error:', txRes.status, JSON.stringify(txData))
-        } else {
-          console.log('Loops transactional sent:', txData.success)
-        }
+        console.log('Loops transactional:', JSON.stringify(txData))
 
       } catch (loopsErr) {
         console.error('Loops error:', loopsErr)

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 // ─── COLOUR TOKENS ───────────────────────────────────────────────
 const C = {
@@ -257,18 +257,6 @@ const inputStyle    = { width: "100%", background: C.inputBg, border: `1.5px sol
 // ─── APP ─────────────────────────────────────────────────────────
 export default function App() {
   const totalSteps = GATES.length + SCORING_DIMS.length;
-  const websiteUrl = import.meta.env.VITE_WEBSITE_URL || "https://corbelle.com";
-  const bookingUrl = import.meta.env.VITE_BOOKING_URL || "https://cal.com/brennie/ai-30-mins";
-
-  useEffect(() => {
-    let canonical = document.querySelector('link[rel="canonical"]');
-    if (!canonical) {
-      canonical = document.createElement("link");
-      canonical.rel = "canonical";
-      document.head.appendChild(canonical);
-    }
-    canonical.href = websiteUrl;
-  }, [websiteUrl]);
 
   const initScores = () => {
     const s = {};
@@ -392,7 +380,7 @@ Respond ONLY with a JSON object, no markdown, no preamble:
   const currentDim  = SCORING_DIMS[scoringIndex];
 
   return (
-    <div className={`app-shell ${step === "results" ? "app-shell--results" : ""}`} style={wrapStyle}>
+    <div style={wrapStyle}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* ── INTRO ── */}
@@ -502,11 +490,8 @@ Respond ONLY with a JSON object, no markdown, no preamble:
 
       {/* ── RESULTS ── */}
       {step === "results" && (
-        <main className="results-card" style={{ ...cardStyle, maxWidth: 640 }}>
-          <section className="print-page print-page--summary">
+        <div style={{ ...cardStyle, maxWidth: 640 }}>
           <div style={labelStyle}>Corbelle — Use Case Validator</div>
-          <div className="print-only print-meta">AI use case assessment</div>
-          <h1 className="print-only print-title">{useCase}</h1>
 
           {/* Score */}
           <div style={{ display: "flex", gap: 20, alignItems: "center", marginBottom: 28 }}>
@@ -526,13 +511,11 @@ Respond ONLY with a JSON object, no markdown, no preamble:
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
             <RadarChart scores={scores} />
           </div>
-          </section>
 
           {/* Dimension breakdown */}
-          <section className="print-page print-page--dimensions" style={{ marginBottom: 28 }}>
-            <h2 className="print-only section-title">Dimension breakdown</h2>
+          <div style={{ marginBottom: 28 }}>
             {SCORING_DIMS.map(dim => (
-              <div className="dimension-row" key={dim.key} style={{ marginBottom: 14 }}>
+              <div key={dim.key} style={{ marginBottom: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 5 }}>
                   <span style={{ color: C.textSecond, fontWeight: 600 }}>{dim.label}</span>
                   <span style={{ color: C.accent, fontWeight: 700 }}>{scores[dim.key]}/5 — {dim.scale[scores[dim.key]-1]}</span>
@@ -541,10 +524,10 @@ Respond ONLY with a JSON object, no markdown, no preamble:
                 <div style={{ fontSize: 12, color: C.textMuted, marginTop: 5 }}>{dim.blocker[scores[dim.key]-1]}</div>
               </div>
             ))}
-          </section>
+          </div>
 
           {/* AI Insight */}
-          <section className="print-page print-page--insight" style={{ borderTop: `1px solid ${C.border}`, paddingTop: 22, marginBottom: 22 }}>
+          <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 22, marginBottom: 22 }}>
             <div style={{ fontSize: 11, color: C.accent, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 16 }}>AI-Generated Insight</div>
             {loadingInsights ? (
               <div style={{ textAlign: "center", padding: "28px 0", color: C.textMuted, fontSize: 14 }}>
@@ -574,24 +557,20 @@ Respond ONLY with a JSON object, no markdown, no preamble:
                 <div style={{ fontSize: 12, color: C.accent, textAlign: "center", marginTop: 10 }}>✉️ A copy has been sent to {email}</div>
               </>
             ) : null}
-          </section>
+          </div>
 
           {/* CTA */}
-          <div className="results-cta" style={{ background: C.accentLight, borderRadius: 12, padding: "20px 22px", marginBottom: 16, borderLeft: `3px solid ${C.accent}` }}>
+          <div style={{ background: C.accentLight, borderRadius: 12, padding: "20px 22px", marginBottom: 16, borderLeft: `3px solid ${C.accent}` }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, marginBottom: 6 }}>Want to work through this with a thinking partner?</div>
             <div style={{ fontSize: 13, color: C.textSecond, lineHeight: 1.6, marginBottom: 14 }}>Corbelle helps mid-size executives make confident AI decisions — without the hype, the wasted licences, or the expensive reversals.</div>
-            <a href={bookingUrl} target="_blank" rel="noopener noreferrer"
+            <a href="https://cal.com/brennie/ai-30-mins" target="_blank" rel="noopener noreferrer"
               style={{ display: "block", background: C.accent, color: "#fff", borderRadius: 50, padding: "13px 20px", fontSize: 14, fontWeight: 600, textAlign: "center", textDecoration: "none" }}>
               Book a Free 30-Minute Call →
             </a>
           </div>
 
-          <div className="screen-only result-actions">
-            <button style={btnStyle} onClick={() => window.print()}>Print / Save as PDF</button>
-            <button style={btnSecStyle} onClick={reset}>Validate Another Use Case</button>
-            <a className="website-link" href={websiteUrl} target="_blank" rel="noopener noreferrer">Visit Corbelle →</a>
-          </div>
-        </main>
+          <button style={btnSecStyle} onClick={reset}>Validate Another Use Case</button>
+        </div>
       )}
     </div>
   );
